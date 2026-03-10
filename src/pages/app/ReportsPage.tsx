@@ -1,0 +1,749 @@
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Download, ChevronDown, TrendingUp, TrendingDown, Euro,
+  Users, FileText, Clock, BarChart2, PieChart, Calendar,
+  ArrowUpRight, ArrowDownRight, AlertTriangle, CheckCircle,
+  Zap, RefreshCw, Target, Layers,
+} from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart as RePieChart, Pie, Cell, RadarChart, Radar,
+  PolarGrid, PolarAngleAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  revenueChartData, dashboardKPIs, topClients, topProducts,
+} from "@/lib/mock-data";
+import { monthlyCashflow } from "@/lib/payments-data";
+import { motion } from "framer-motion";
+import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+const fmtEUR = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+
+const fmtPct = (n: number) => `${n > 0 ? "+" : ""}${n.toFixed(1)}%`;
+
+const COLORS = [
+  "hsl(250 75% 57%)",
+  "hsl(200 80% 50%)",
+  "hsl(142 70% 45%)",
+  "hsl(35 90% 55%)",
+  "hsl(340 80% 55%)",
+  "hsl(270 60% 60%)",
+];
+
+const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
+const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
+
+// ─── DERIVED DATA ─────────────────────────────────────────────────────────────
+
+// N-1 simulé
+const revenueWithN1 = revenueChartData.map((d, i) => ({
+  ...d,
+  revenueN1: Math.round(d.revenue * (0.82 + Math.random() * 0.12)),
+  expensesN1: Math.round(d.expenses * (0.85 + Math.random() * 0.10)),
+}));
+
+// Par trimestre
+const quarterly = [
+  { period: "T1 2023", revenue: 89000, expenses: 57000, profit: 32000 },
+  { period: "T2 2023", revenue: 98500, expenses: 61000, profit: 37500 },
+  { period: "T3 2023", revenue: 94200, expenses: 59500, profit: 34700 },
+  { period: "T4 2023", revenue: 108000, expenses: 65000, profit: 43000 },
+  { period: "T1 2024", revenue: 105500, expenses: 66500, profit: 39000 },
+  { period: "T2 2024", revenue: 125500, expenses: 75500, profit: 50000 },
+];
+
+// Répartition CA par catégorie
+const revenueByCategory = [
+  { name: "Développement web", value: 24500, pct: 38 },
+  { name: "Design UI/UX", value: 12800, pct: 20 },
+  { name: "Consulting", value: 8500, pct: 13 },
+  { name: "Maintenance", value: 6200, pct: 10 },
+  { name: "Formation", value: 4800, pct: 7 },
+  { name: "Autres", value: 7800, pct: 12 },
+];
+
+// Charges par catégorie
+const expensesByCategory = [
+  { name: "Charges sociales", value: 8400, pct: 30 },
+  { name: "Logiciels & SaaS", value: 3200, pct: 11 },
+  { name: "Hébergement", value: 1800, pct: 6 },
+  { name: "Loyer & bureau", value: 5700, pct: 20 },
+  { name: "Déplacements", value: 2100, pct: 7 },
+  { name: "Assurances", value: 1440, pct: 5 },
+  { name: "Autres", value: 5110, pct: 18 },
+  { name: "Frais bancaires", value: 1000, pct: 4 },
+];
+
+// DSO historique
+const dsoHistory = [
+  { month: "Oct", dso: 41 }, { month: "Nov", dso: 38 }, { month: "Déc", dso: 44 },
+  { month: "Jan", dso: 36 }, { month: "Fév", dso: 32 }, { month: "Mar", dso: 34 },
+];
+
+// Performance commerciale
+const salesPerf = [
+  { month: "Oct", devis: 12, gagnes: 8, montant: 38000 },
+  { month: "Nov", devis: 15, gagnes: 11, montant: 52000 },
+  { month: "Déc", devis: 9, gagnes: 6, montant: 28000 },
+  { month: "Jan", devis: 14, gagnes: 10, montant: 44000 },
+  { month: "Fév", devis: 18, gagnes: 13, montant: 61000 },
+  { month: "Mar", devis: 16, gagnes: 12, montant: 54000 },
+];
+
+// Radar compétences métier
+const radarData = [
+  { metric: "Récurrence", value: 72 },
+  { metric: "Marges", value: 64 },
+  { metric: "Recouvrement", value: 58 },
+  { metric: "Croissance", value: 82 },
+  { metric: "Diversif.", value: 45 },
+  { metric: "Fidélisation", value: 88 },
+];
+
+// ─── SHARED COMPONENTS ────────────────────────────────────────────────────────
+
+function KpiCard({
+  label, value, sub, trend, trendLabel, icon: Icon, color = "text-foreground",
+}: {
+  label: string; value: string; sub?: string; trend?: number;
+  trendLabel?: string; icon: React.ElementType; color?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs text-muted-foreground">{label}</span>
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        </div>
+        <p className={`text-2xl font-display font-bold ${color}`}>{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1 mt-2 text-xs font-medium ${trend >= 0 ? "text-success" : "text-destructive"}`}>
+            {trend >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+            {fmtPct(trend)} {trendLabel}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-background border border-border rounded-lg p-2.5 shadow-lg text-xs">
+      <p className="font-medium mb-1.5">{label}</p>
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name} :</span>
+          <span className="font-semibold">{typeof p.value === "number" && p.value > 500 ? fmtEUR(p.value) : p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── PAGE ─────────────────────────────────────────────────────────────────────
+
+export default function ReportsPage() {
+  const navigate = useNavigate();
+  const [period, setPeriod] = useState("2024");
+  const [tab, setTab] = useState("financier");
+  const [exporting, setExporting] = useState(false);
+
+  const totalRevenue = revenueChartData.reduce((s, d) => s + d.revenue, 0);
+  const totalExpenses = revenueChartData.reduce((s, d) => s + d.expenses, 0);
+  const totalProfit = revenueChartData.reduce((s, d) => s + d.profit, 0);
+  const avgMargin = Math.round((totalProfit / totalRevenue) * 100);
+
+  const handleExportPDF = async (type: "monthly" | "annual") => {
+    setExporting(true);
+    await new Promise(r => setTimeout(r, 1200));
+    setExporting(false);
+    toast({ title: `Rapport ${type === "monthly" ? "mensuel" : "annuel " + period} exporté`, description: "Le fichier PDF a été téléchargé." });
+  };
+
+  const handleExportCSV = () => {
+    const rows = [["Mois","CA","Charges","Résultat"], ...revenueChartData.map(d => [d.month, d.revenue, d.expenses, d.profit])];
+    const csv  = rows.map(r => r.join(";")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a    = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `rapport_${period}.csv`; a.click();
+    toast({ title: "Export CSV réussi" });
+  };
+
+  return (
+    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+
+      {/* Header */}
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold">Rapports</h1>
+          <p className="text-sm text-muted-foreground">Analysez vos performances financières et commerciales</p>
+        </div>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Calendar className="h-3.5 w-3.5 mr-1.5" />{period}
+                <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="text-xs">
+              {["2024", "2023", "T1 2024", "T4 2023", "12 derniers mois"].map((p) => (
+                <DropdownMenuItem key={p} onClick={() => setPeriod(p)}>{p}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-3.5 w-3.5 mr-1.5" />Exporter PDF</Button>
+          <Button size="sm" className="gradient-primary text-primary-foreground" onClick={() => window.location.reload()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Actualiser
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Top KPIs */}
+      <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="CA annuel" value={fmtEUR(totalRevenue)} sub="12 mois glissants"
+          trend={12.4} trendLabel="vs N-1" icon={Euro} color="text-primary" />
+        <KpiCard label="Résultat net" value={fmtEUR(totalProfit)} sub={`Marge ${avgMargin}%`}
+          trend={8.2} trendLabel="vs N-1" icon={TrendingUp} color="text-success" />
+        <KpiCard label="Charges totales" value={fmtEUR(totalExpenses)}
+          trend={-4.1} trendLabel="vs N-1" icon={ArrowDownRight} />
+        <KpiCard label="DSO moyen" value={`${dashboardKPIs.dso}j`} sub="Délai de paiement"
+          trend={-5.8} trendLabel="vs N-1" icon={Clock} color="text-warning" />
+      </motion.div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="financier">
+            <BarChart2 className="h-3.5 w-3.5 mr-1.5" />Financier
+          </TabsTrigger>
+          <TabsTrigger value="commercial">
+            <Target className="h-3.5 w-3.5 mr-1.5" />Commercial
+          </TabsTrigger>
+          <TabsTrigger value="clients">
+            <Users className="h-3.5 w-3.5 mr-1.5" />Clients
+          </TabsTrigger>
+          <TabsTrigger value="synthese">
+            <Layers className="h-3.5 w-3.5 mr-1.5" />Synthèse
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── ONGLET FINANCIER ─────────────────────────────────────────────── */}
+        <TabsContent value="financier" className="space-y-4 mt-4">
+
+          {/* CA + charges évolution */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">CA vs Charges vs Résultat — mensuel</CardTitle>
+                <div className="flex gap-3 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-primary" />CA</span>
+                  <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-destructive/60" />Charges</span>
+                  <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-success" />Résultat</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueChartData}>
+                    <defs>
+                      <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(250 75% 57%)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="hsl(250 75% 57%)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gPro" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(142 70% 45%)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="hsl(142 70% 45%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area type="monotone" dataKey="revenue" stroke="hsl(250 75% 57%)" fill="url(#gRev)" strokeWidth={2} name="CA" />
+                    <Area type="monotone" dataKey="expenses" stroke="hsl(0 72% 55%)" fill="none" strokeWidth={1.5} strokeDasharray="4 2" name="Charges" />
+                    <Area type="monotone" dataKey="profit" stroke="hsl(142 70% 45%)" fill="url(#gPro)" strokeWidth={2} name="Résultat" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Répartition CA + Charges */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Répartition du CA par activité</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-4 items-center">
+                  <div className="h-[180px] w-[180px] flex-shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RePieChart>
+                        <Pie data={revenueByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                          dataKey="value" paddingAngle={2}>
+                          {revenueByCategory.map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => fmtEUR(v)} />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    {revenueByCategory.map((cat, i) => (
+                      <div key={cat.name} className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                        <span className="text-xs flex-1 truncate text-muted-foreground">{cat.name}</span>
+                        <span className="text-xs font-semibold">{cat.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Répartition des charges</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2.5">
+                  {expensesByCategory.map((cat, i) => (
+                    <div key={cat.name}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">{cat.name}</span>
+                        <span className="font-medium">{fmtEUR(cat.value)} <span className="text-muted-foreground">({cat.pct}%)</span></span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: COLORS[i % COLORS.length] }}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${cat.pct}%` }}
+                          transition={{ duration: 0.6, delay: i * 0.05 }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Comparaison N vs N-1 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Comparaison N vs N-1 — CA mensuel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={revenueWithN1} barGap={2}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="revenue" fill="hsl(250 75% 57%)" radius={[3, 3, 0, 0]} name="2024" />
+                    <Bar dataKey="revenueN1" fill="hsl(250 75% 57% / 0.25)" radius={[3, 3, 0, 0]} name="2023" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Évolution trimestrielle */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Performance trimestrielle</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left p-3 font-medium text-muted-foreground">Trimestre</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">CA</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Charges</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Résultat</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">Marge</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground hidden sm:table-cell">Évol. CA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...quarterly].reverse().map((q, i, arr) => {
+                    const prev = arr[i + 1];
+                    const evol = prev ? Math.round(((q.revenue - prev.revenue) / prev.revenue) * 100) : null;
+                    const margin = Math.round((q.profit / q.revenue) * 100);
+                    return (
+                      <tr key={q.period} className={`border-b border-border/50 hover:bg-muted/20 ${i === 0 ? "font-medium" : ""}`}>
+                        <td className="p-3">{q.period} {i === 0 && <Badge variant="secondary" className="ml-1 text-[9px]">En cours</Badge>}</td>
+                        <td className="p-3 text-right text-primary font-semibold">{fmtEUR(q.revenue)}</td>
+                        <td className="p-3 text-right text-muted-foreground">{fmtEUR(q.expenses)}</td>
+                        <td className="p-3 text-right text-success font-semibold">{fmtEUR(q.profit)}</td>
+                        <td className="p-3 text-right">
+                          <span className={margin >= 35 ? "text-success" : margin >= 25 ? "text-warning" : "text-destructive"}>
+                            {margin}%
+                          </span>
+                        </td>
+                        <td className="p-3 text-right hidden sm:table-cell">
+                          {evol !== null ? (
+                            <span className={evol >= 0 ? "text-success" : "text-destructive"}>
+                              {evol >= 0 ? "+" : ""}{evol}%
+                            </span>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── ONGLET COMMERCIAL ────────────────────────────────────────────── */}
+        <TabsContent value="commercial" className="space-y-4 mt-4">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard label="Taux de conversion" value={`${dashboardKPIs.conversionRate}%`}
+              sub="Devis → Facture" trend={4.2} trendLabel="vs N-1" icon={Target} color="text-primary" />
+            <KpiCard label="Devis gagnés" value={`${dashboardKPIs.quotesWon}`}
+              sub={`${dashboardKPIs.quotesLost} perdus`} trend={12.1} trendLabel="vs N-1" icon={CheckCircle} color="text-success" />
+            <KpiCard label="Panier moyen" value={fmtEUR(Math.round(totalRevenue / dashboardKPIs.invoicesPaid))}
+              trend={6.8} trendLabel="vs N-1" icon={FileText} />
+            <KpiCard label="CA top client" value={fmtEUR(topClients[0].revenue)}
+              sub={topClients[0].name} icon={Users} color="text-primary" />
+          </div>
+
+          {/* Devis vs Gagnés */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Devis émis vs gagnés — 6 mois</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={salesPerf} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="devis" fill="hsl(220 16% 85%)" radius={[3, 3, 0, 0]} name="Devis émis" />
+                    <Bar dataKey="gagnes" fill="hsl(250 75% 57%)" radius={[3, 3, 0, 0]} name="Devis gagnés" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Montant gagné par mois */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Montant signé par mois</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesPerf}>
+                      <defs>
+                        <linearGradient id="gMontant" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(142 70% 45%)" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(142 70% 45%)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area type="monotone" dataKey="montant" stroke="hsl(142 70% 45%)" fill="url(#gMontant)" strokeWidth={2} name="Montant signé" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top produits/services */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Top services / produits</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {topProducts.map((p, i) => {
+                    const pct = Math.round((p.revenue / topProducts[0].revenue) * 100);
+                    return (
+                      <div key={p.name}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[10px] w-4 text-muted-foreground">{i + 1}</span>
+                            <span className="font-medium">{p.name}</span>
+                          </div>
+                          <div className="flex gap-3">
+                            <span className="text-muted-foreground">{p.count} fact.</span>
+                            <span className="font-semibold text-primary">{fmtEUR(p.revenue)}</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full gradient-primary"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.5, delay: i * 0.08 }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── ONGLET CLIENTS ───────────────────────────────────────────────── */}
+        <TabsContent value="clients" className="space-y-4 mt-4">
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <KpiCard label="Clients actifs" value="8" sub="ce trimestre"
+              trend={14.3} trendLabel="vs N-1" icon={Users} color="text-primary" />
+            <KpiCard label="Taux fidélisation" value="87%" sub="clients récurrents"
+              trend={3.2} trendLabel="vs N-1" icon={CheckCircle} color="text-success" />
+            <KpiCard label="Créances client" value={fmtEUR(dashboardKPIs.unpaid)}
+              sub={`${dashboardKPIs.unpaidCount} factures`} icon={AlertTriangle} color="text-warning" />
+            <KpiCard label="DSO actuel" value={`${dashboardKPIs.dso}j`}
+              sub="Délai moyen paiement" trend={-5.8} trendLabel="vs N-1" icon={Clock} />
+          </div>
+
+          {/* Top clients par CA */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Top clients par CA — {period}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left p-3 font-medium text-muted-foreground">Client</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground">CA</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground hidden sm:table-cell">Factures</th>
+                    <th className="text-right p-3 font-medium text-muted-foreground hidden md:table-cell">Part du CA</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground hidden lg:table-cell">Répartition</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topClients.map((client, i) => {
+                    const pct = Math.round((client.revenue / topClients.reduce((s, c) => s + c.revenue, 0)) * 100);
+                    return (
+                      <tr key={client.name} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                        <td className="p-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-7 w-7 rounded-lg gradient-primary flex items-center justify-center text-primary-foreground text-[9px] font-bold">
+                              {client.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium">{client.name}</p>
+                              <p className="text-[10px] text-muted-foreground">#{i + 1} client</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 text-right font-bold text-primary">{fmtEUR(client.revenue)}</td>
+                        <td className="p-3 text-right text-muted-foreground hidden sm:table-cell">{client.invoices}</td>
+                        <td className="p-3 text-right hidden md:table-cell font-medium">{pct}%</td>
+                        <td className="p-3 hidden lg:table-cell">
+                          <div className="h-1.5 w-32 rounded-full bg-secondary overflow-hidden">
+                            <div className="h-full rounded-full gradient-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </td>
+                        <td className="p-3 text-center">
+                          <Badge variant="secondary"
+                            className={`text-[10px] ${client.status === "active" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                            {client.status === "active" ? "Actif" : "Attention"}
+                          </Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+
+          {/* DSO historique */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Évolution du DSO — 6 mois</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dsoHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} domain={[20, 50]} unit="j" />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Line type="monotone" dataKey="dso" stroke="hsl(35 90% 55%)"
+                        strokeWidth={2} dot={{ fill: "hsl(35 90% 55%)", r: 4 }} name="DSO (jours)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Concentration client */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Concentration du CA</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RePieChart>
+                      <Pie data={topClients} cx="50%" cy="50%" innerRadius={45} outerRadius={75}
+                        dataKey="revenue" nameKey="name" paddingAngle={2}>
+                        {topClients.map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => fmtEUR(v)} />
+                      <Legend formatter={(v) => <span className="text-[10px]">{v}</span>} />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* ── ONGLET SYNTHÈSE ──────────────────────────────────────────────── */}
+        <TabsContent value="synthese" className="space-y-4 mt-4">
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Radar performance globale */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Indicateurs de performance globale</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="hsl(220 16% 90%)" />
+                      <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
+                      <Radar name="Score" dataKey="value" stroke="hsl(250 75% 57%)"
+                        fill="hsl(250 75% 57%)" fillOpacity={0.25} />
+                      <Tooltip />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Récap P&L simplifié */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Compte de résultat simplifié — {period}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-0">
+                  {[
+                    { label: "Chiffre d'affaires", value: totalRevenue, type: "revenue", bold: true },
+                    { label: "Charges d'exploitation", value: -totalExpenses * 0.7, type: "expense" },
+                    { label: "Charges sociales", value: -totalExpenses * 0.3, type: "expense" },
+                    { label: "Résultat d'exploitation", value: totalProfit * 1.1, type: "subtotal", bold: true },
+                    { label: "Produits financiers", value: 480, type: "revenue" },
+                    { label: "Charges financières", value: -180, type: "expense" },
+                    { label: "Résultat net avant impôt", value: totalProfit * 1.08, type: "subtotal", bold: true },
+                    { label: "Impôt estimé (15%)", value: -(totalProfit * 1.08 * 0.15), type: "expense" },
+                    { label: "Résultat net", value: totalProfit * 0.918, type: "final", bold: true },
+                  ].map((row, i) => (
+                    <div key={i} className={`flex justify-between py-2 text-xs border-b border-border/30 ${row.type === "subtotal" ? "bg-muted/30 px-2 rounded" : ""} ${row.type === "final" ? "bg-success/5 px-2 rounded border-success/20" : ""}`}>
+                      <span className={row.bold ? "font-semibold" : "text-muted-foreground"}>{row.label}</span>
+                      <span className={`font-mono font-semibold ${row.value > 0 ? row.type === "final" ? "text-success" : "text-foreground" : "text-destructive"}`}>
+                        {row.value > 0 ? "+" : ""}{fmtEUR(Math.round(row.value))}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Alertes et recommandations */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />Alertes & recommandations IA
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5">
+              {[
+                { type: "warning", icon: AlertTriangle, title: "Concentration client élevée", desc: "Acme Corp représente 34% de votre CA. Risque si ce client part. Objectif : max 25% par client.", cta: "Analyser", action: () => setTab("clients") },
+                { type: "danger", icon: AlertTriangle, title: "DSO dégradé vs secteur", desc: "34 jours vs 28j de moyenne sectorielle. Chaque jour supplémentaire coûte ~1 300€ de BFR.", cta: "Relancer", action: () => navigate("/app/sales/reminders") },
+                { type: "success", icon: CheckCircle, title: "Marge en amélioration", desc: `Votre marge nette de ${avgMargin}% est en hausse de 8.2 points vs N-1. Continuez sur cette trajectoire.`, cta: "Voir détail", action: () => setTab("financier") },
+                { type: "info", icon: TrendingUp, title: "Opportunité : service Maintenance", desc: "Votre taux de rétention sur ce service est de 94%. C'est votre levier de croissance récurrente prioritaire.", cta: "Développer", action: () => navigate("/app/sales/invoices/new") },
+              ].map((alert, i) => (
+                <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border text-sm ${
+                  alert.type === "warning" ? "border-warning/30 bg-warning/5" :
+                  alert.type === "danger" ? "border-destructive/30 bg-destructive/5" :
+                  alert.type === "success" ? "border-success/30 bg-success/5" :
+                  "border-blue-500/20 bg-blue-500/5"
+                }`}>
+                  <alert.icon className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
+                    alert.type === "warning" ? "text-warning" :
+                    alert.type === "danger" ? "text-destructive" :
+                    alert.type === "success" ? "text-success" : "text-blue-500"
+                  }`} />
+                  <div className="flex-1">
+                    <p className="font-medium text-xs">{alert.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{alert.desc}</p>
+                  </div>
+                  <Button variant="outline" size="sm" className="text-xs h-7 flex-shrink-0" onClick={alert.action}>{alert.cta}</Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Export rapports */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-sm mb-1">Exporter les rapports</p>
+                  <p className="text-xs text-muted-foreground">Générez des rapports PDF complets pour votre comptable ou investisseurs</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="text-xs" onClick={() => handleExportPDF("monthly")} disabled={exporting}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" />Rapport mensuel
+                  </Button>
+                  <Button size="sm" className="gradient-primary text-primary-foreground text-xs" onClick={() => handleExportPDF("annual")} disabled={exporting}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" />Rapport annuel {period}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </motion.div>
+  );
+}
