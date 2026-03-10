@@ -21,10 +21,7 @@ export default function PublicLayout() {
             <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div className="flex flex-col leading-tight">
-            <span className="font-bold text-base tracking-tight">M7Sept</span>
-            <span className="text-[9px] text-muted-foreground italic hidden sm:block">Cherchez, Trouvez et Optimisez.</span>
-          </div>
+            <span className="font-display font-bold text-xl tracking-tight">M7Sept</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -44,6 +41,9 @@ export default function PublicLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link to="/app/dashboard">
+              <Button variant="outline" size="sm">👀 Démo</Button>
+            </Link>
             <Link to="/login">
               <Button variant="ghost" size="sm">Connexion</Button>
             </Link>
@@ -92,7 +92,7 @@ export default function PublicLayout() {
           </div>
         </div>
         <div className="container mt-8 pt-6 border-t border-border text-center text-xs text-muted-foreground">
-          © 2024 M7:7. Tous droits réservés.
+          © 2024 M7Sept. Tous droits réservés.
         </div>
       </footer>
     </div>
