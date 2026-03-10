@@ -19,6 +19,7 @@ import {
 import { useApi } from "@/hooks/useApi";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 // Fallback mock data si API indisponible
 import {
@@ -168,22 +169,22 @@ export default function CustomersListPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2"><Users className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Clients actifs</span></div>
+          <div className="flex items-center gap-2 mb-2"><Users className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Clients actifs</span><InfoTooltip title="Clients actifs" description="Clients ayant au moins une facture émise ce trimestre et dont le statut est 'actif'." benefit="Suivre ce chiffre permet d'identifier une croissance ou une perte de clientèle." /></div>
           <p className="text-2xl font-display font-bold">{active}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{customers.length} au total</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">CA total</span></div>
+          <div className="flex items-center gap-2 mb-2"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">CA total</span><InfoTooltip title="Chiffre d'affaires total" description="Somme du CA HT généré par l'ensemble des clients filtrés sur toutes les périodes." formula="Σ totalRevenue de chaque client" benefit="Indique la valeur globale de votre portefeuille clients." /></div>
           <p className="text-2xl font-display font-bold">{fmtEUR(totalRevenue)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Tous clients confondus</p>
         </CardContent></Card>
         <Card className="border-destructive/20"><CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /><span className="text-xs text-muted-foreground">Impayés</span></div>
+          <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /><span className="text-xs text-muted-foreground">Impayés</span><InfoTooltip title="Impayés clients" description="Total des montants dus non encore réglés par vos clients, toutes factures confondues." formula="Σ (totalDue des factures non payées par client)" benefit="Un impayé élevé signale un risque de trésorerie. Déclenchez des relances depuis la fiche client." /></div>
           <p className="text-2xl font-display font-bold text-destructive">{fmtEUR(totalUnpaid)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{customers.filter((c) => c.totalUnpaid > 0).length} clients concernés</p>
         </CardContent></Card>
         <Card className="border-warning/20"><CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-warning" /><span className="text-xs text-muted-foreground">À risque élevé</span></div>
+          <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-3.5 w-3.5 text-warning" /><span className="text-xs text-muted-foreground">À risque élevé</span><InfoTooltip title="Clients à risque élevé" description="Clients dont le score de risque est 'élevé' : délai de paiement long, impayés répétés, ou inactivité prolongée." benefit="Priorisez les relances sur ces clients et envisagez de revoir leurs conditions de paiement." /></div>
           <p className="text-2xl font-display font-bold text-warning">{atRisk}</p>
           <p className="text-xs text-muted-foreground mt-0.5">clients à surveiller</p>
         </CardContent></Card>

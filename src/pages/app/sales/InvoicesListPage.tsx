@@ -14,6 +14,7 @@ import {
 import { useApi } from "@/hooks/useApi";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
+import { InfoTooltip, DASHBOARD_TOOLTIPS } from "@/components/ui/InfoTooltip";
 import { invoices as mockInvoices, invoiceStatusConfig, fmtEUR, type InvoiceStatus } from "@/lib/sales-data";
 
 type StatusFilter = "all" | InvoiceStatus;
@@ -125,15 +126,24 @@ export default function InvoicesListPage() {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <Card><CardContent className="p-3.5 text-center">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Payé</p>
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Payé</p>
+            <InfoTooltip title="Montant payé" description="Total des factures dont le statut est 'Payé' sur la liste filtrée." formula="Σ total des factures avec statut = PAID" benefit="Représente vos encaissements réels sur la période." />
+          </div>
           <p className="text-xl font-display font-bold text-success">{fmtEUR(totalPaid)}</p>
         </CardContent></Card>
         <Card><CardContent className="p-3.5 text-center">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">En attente</p>
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">En attente</p>
+            <InfoTooltip title="Montant en attente" description="Total des montants restants à percevoir sur les factures envoyées ou partiellement payées." formula="Σ (total − paidAmount) des factures SENT ou PARTIALLY_PAID" benefit="Anticipe vos prochaines entrées de trésorerie." />
+          </div>
           <p className="text-xl font-display font-bold text-info">{fmtEUR(totalPending)}</p>
         </CardContent></Card>
         <Card className="border-destructive/20"><CardContent className="p-3.5 text-center">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">En retard</p>
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">En retard</p>
+            <InfoTooltip {...DASHBOARD_TOOLTIPS.facturesEnRetard} />
+          </div>
           <p className="text-xl font-display font-bold text-destructive">{fmtEUR(totalOverdue)}</p>
         </CardContent></Card>
       </div>

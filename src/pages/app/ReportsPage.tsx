@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InfoTooltip, DASHBOARD_TOOLTIPS } from "@/components/ui/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,16 +117,19 @@ const radarData = [
 // ─── SHARED COMPONENTS ────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, sub, trend, trendLabel, icon: Icon, color = "text-foreground",
+  label, value, sub, trend, trendLabel, icon: Icon, color = "text-foreground", tooltip,
 }: {
   label: string; value: string; sub?: string; trend?: number;
-  trendLabel?: string; icon: React.ElementType; color?: string;
+  trendLabel?: string; icon: React.ElementType; color?: string; tooltip?: React.ReactNode;
 }) {
   return (
     <Card>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs text-muted-foreground">{label}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground">{label}</span>
+            {tooltip}
+          </div>
           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         </div>
         <p className={`text-2xl font-display font-bold ${color}`}>{value}</p>
@@ -219,13 +223,17 @@ export default function ReportsPage() {
       {/* Top KPIs */}
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard label="CA annuel" value={fmtEUR(totalRevenue)} sub="12 mois glissants"
-          trend={12.4} trendLabel="vs N-1" icon={Euro} color="text-primary" />
+          trend={12.4} trendLabel="vs N-1" icon={Euro} color="text-primary"
+          tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.caHT} />} />
         <KpiCard label="Résultat net" value={fmtEUR(totalProfit)} sub={`Marge ${avgMargin}%`}
-          trend={8.2} trendLabel="vs N-1" icon={TrendingUp} color="text-success" />
+          trend={8.2} trendLabel="vs N-1" icon={TrendingUp} color="text-success"
+          tooltip={<InfoTooltip title="Résultat net" description="CA HT moins l'ensemble des charges (achats, frais généraux, charges sociales). Représente ce qui reste réellement dans l'entreprise." formula="CA HT − Charges totales" benefit="Indicateur clé de rentabilité. Un résultat positif indique que l'activité est profitable." />} />
         <KpiCard label="Charges totales" value={fmtEUR(totalExpenses)}
-          trend={-4.1} trendLabel="vs N-1" icon={ArrowDownRight} />
+          trend={-4.1} trendLabel="vs N-1" icon={ArrowDownRight}
+          tooltip={<InfoTooltip title="Charges totales" description="Somme de toutes les dépenses enregistrées sur la période : achats, frais généraux, charges sociales, amortissements." benefit="Surveiller l'évolution des charges permet d'identifier les postes à optimiser." />} />
         <KpiCard label="DSO moyen" value={`${dashboardKPIs.dso}j`} sub="Délai de paiement"
-          trend={-5.8} trendLabel="vs N-1" icon={Clock} color="text-warning" />
+          trend={-5.8} trendLabel="vs N-1" icon={Clock} color="text-warning"
+          tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.delaiPaiement} />} />
       </motion.div>
 
       <Tabs value={tab} onValueChange={setTab}>
@@ -423,13 +431,17 @@ export default function ReportsPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard label="Taux de conversion" value={`${dashboardKPIs.conversionRate}%`}
-              sub="Devis → Facture" trend={4.2} trendLabel="vs N-1" icon={Target} color="text-primary" />
+              sub="Devis → Facture" trend={4.2} trendLabel="vs N-1" icon={Target} color="text-primary"
+              tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.tauxConversion} />} />
             <KpiCard label="Devis gagnés" value={`${dashboardKPIs.quotesWon}`}
-              sub={`${dashboardKPIs.quotesLost} perdus`} trend={12.1} trendLabel="vs N-1" icon={CheckCircle} color="text-success" />
+              sub={`${dashboardKPIs.quotesLost} perdus`} trend={12.1} trendLabel="vs N-1" icon={CheckCircle} color="text-success"
+              tooltip={<InfoTooltip title="Devis gagnés" description="Nombre de devis acceptés par vos clients sur la période. Les devis perdus sont ceux refusés ou expirés." formula="Devis avec statut = ACCEPTED" benefit="Suivre ce chiffre permet d'ajuster votre stratégie commerciale et de relancer les devis en attente." />} />
             <KpiCard label="Panier moyen" value={fmtEUR(Math.round(totalRevenue / dashboardKPIs.invoicesPaid))}
-              trend={6.8} trendLabel="vs N-1" icon={FileText} />
+              trend={6.8} trendLabel="vs N-1" icon={FileText}
+              tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.panierMoyen} />} />
             <KpiCard label="CA top client" value={fmtEUR(topClients[0].revenue)}
-              sub={topClients[0].name} icon={Users} color="text-primary" />
+              sub={topClients[0].name} icon={Users} color="text-primary"
+              tooltip={<InfoTooltip title="CA top client" description="Chiffre d'affaires généré par votre meilleur client sur la période. Une forte dépendance à un seul client représente un risque." benefit="Si ce client dépasse 30% de votre CA total, diversifiez votre portefeuille client." />} />
           </div>
 
           {/* Devis vs Gagnés */}
@@ -523,13 +535,17 @@ export default function ReportsPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <KpiCard label="Clients actifs" value="8" sub="ce trimestre"
-              trend={14.3} trendLabel="vs N-1" icon={Users} color="text-primary" />
+              trend={14.3} trendLabel="vs N-1" icon={Users} color="text-primary"
+              tooltip={<InfoTooltip title="Clients actifs" description="Nombre de clients ayant eu au moins une facture émise sur le trimestre en cours." benefit="Un nombre croissant de clients actifs indique une bonne dynamique commerciale." />} />
             <KpiCard label="Taux fidélisation" value="87%" sub="clients récurrents"
-              trend={3.2} trendLabel="vs N-1" icon={CheckCircle} color="text-success" />
+              trend={3.2} trendLabel="vs N-1" icon={CheckCircle} color="text-success"
+              tooltip={<InfoTooltip title="Taux de fidélisation" description="Pourcentage de clients ayant passé commande sur au moins 2 périodes consécutives." formula="(Clients récurrents ÷ Clients totaux) × 100" benefit="Un taux élevé réduit les coûts d'acquisition et stabilise votre chiffre d'affaires." />} />
             <KpiCard label="Créances client" value={fmtEUR(dashboardKPIs.unpaid)}
-              sub={`${dashboardKPIs.unpaidCount} factures`} icon={AlertTriangle} color="text-warning" />
+              sub={`${dashboardKPIs.unpaidCount} factures`} icon={AlertTriangle} color="text-warning"
+              tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.facturesEnRetard} />} />
             <KpiCard label="DSO actuel" value={`${dashboardKPIs.dso}j`}
-              sub="Délai moyen paiement" trend={-5.8} trendLabel="vs N-1" icon={Clock} />
+              sub="Délai moyen paiement" trend={-5.8} trendLabel="vs N-1" icon={Clock}
+              tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.delaiPaiement} />} />
           </div>
 
           {/* Top clients par CA */}
