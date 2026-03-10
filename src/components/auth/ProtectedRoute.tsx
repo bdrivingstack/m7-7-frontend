@@ -3,10 +3,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  // 🔓 MODE DÉMO — décommente le bloc ci-dessous pour réactiver l'auth
+  return <>{children}</>;
+
+  /* AUTH — à réactiver en production
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // Pendant le chargement initial — spinner centré
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -15,10 +18,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  // Non connecté → login avec redirect retour
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   return <>{children}</>;
+  */
 }
