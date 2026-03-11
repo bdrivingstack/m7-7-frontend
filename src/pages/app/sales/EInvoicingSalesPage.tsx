@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Zap, CheckCircle, Clock, ExternalLink, FileText, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 export default function EInvoicingSalesPage() {
@@ -20,7 +21,7 @@ export default function EInvoicingSalesPage() {
           </CardContent></Card>
         ))}
       </div>
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Clock className="h-4 w-4"/>Calendrier réforme</CardTitle></CardHeader>
+      <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Clock className="h-4 w-4"/>Calendrier réforme<InfoTooltip title="Calendrier de la réforme e-facture" description="Dates clés de l'obligation de facturation électronique en France : réception puis émission obligatoires selon la taille de l'entreprise." benefit="M7Sept vous accompagnera automatiquement dans chaque étape de la conformité. Aucune action requise de votre part pour l'instant." /></CardTitle></CardHeader>
         <CardContent className="space-y-2 text-xs">
           {[{date:"1er sept. 2026",label:"Grandes entreprises & ETI — réception obligatoire",done:false},{date:"1er sept. 2027",label:"PME & micro-entreprises — émission et réception",done:false}].map(r=>(
             <div key={r.date} className="flex items-center gap-3 p-2.5 rounded-lg border border-border/50">

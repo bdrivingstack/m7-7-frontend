@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Landmark, RefreshCw, Plus, Wifi, WifiOff, ExternalLink } from "lucide-react";
 import { bankAccounts } from "@/lib/accounting-data";
 import { motion } from "framer-motion";
@@ -25,7 +26,10 @@ export default function BanksPage() {
         <CardContent className="p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Solde total</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                Solde total
+                <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés à M7Sept en temps réel." benefit="Cette vue consolidée vous donne une image instantanée de votre trésorerie disponible, tous comptes confondus." />
+              </p>
               <p className="text-3xl font-display font-bold">
                 {fmt(bankAccounts.reduce((s, a) => s + a.balance, 0))}
               </p>

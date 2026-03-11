@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { accountingCategories } from "@/lib/accounting-data";
@@ -32,7 +33,10 @@ export default function CategoriesPage() {
         <TabsContent value="revenue" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Répartition par catégorie de recettes</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Répartition par catégorie de recettes</CardTitle>
+                <InfoTooltip title="Répartition par catégorie de recettes" description="Comparaison visuelle du CA généré par chaque catégorie de service ou produit vendu." benefit="Identifiez vos activités les plus rentables pour orienter votre prospection commerciale." />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[200px]">
@@ -62,7 +66,10 @@ export default function CategoriesPage() {
         <TabsContent value="expense" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Répartition par catégorie de dépenses</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">Répartition par catégorie de dépenses</CardTitle>
+                <InfoTooltip title="Répartition par catégorie de dépenses" description="Comparaison visuelle de vos charges par poste : logiciels, matériel, frais généraux, cotisations, etc." benefit="Repérez les postes de dépenses disproportionnés et identifiez où réduire sans impacter votre activité." />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[240px]">

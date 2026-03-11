@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import {
   Search, Filter, ArrowUpRight, ArrowDownRight, AlertCircle,
   CheckCircle, Bot, Tag, Landmark, Calendar, Download,
@@ -47,7 +48,10 @@ export default function TransactionsPage() {
         <Card>
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total entrées</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total entrées</span>
+                <InfoTooltip title="Total entrées" description="Somme de tous les virements et encaissements reçus sur vos comptes bancaires connectés sur la période." benefit="Comparez ce chiffre à votre CA HT facturé pour détecter des paiements non encore enregistrés." />
+              </div>
               <ArrowUpRight className="h-3.5 w-3.5 text-success" />
             </div>
             <p className="text-lg font-display font-bold text-success">{fmt(totalCredit)}</p>
@@ -56,7 +60,10 @@ export default function TransactionsPage() {
         <Card>
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total sorties</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total sorties</span>
+                <InfoTooltip title="Total sorties" description="Somme de tous les prélèvements et paiements effectués depuis vos comptes bancaires sur la période." benefit="Surveillez l'évolution de vos sorties pour anticiper les tensions de trésorerie." />
+              </div>
               <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
             </div>
             <p className="text-lg font-display font-bold text-destructive">{fmt(totalDebit)}</p>
@@ -64,8 +71,9 @@ export default function TransactionsPage() {
         </Card>
         <Card>
           <CardContent className="p-3.5">
-            <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Solde net</span>
+              <InfoTooltip title="Solde net" description="Différence entre les entrées et les sorties bancaires sur la période." formula="Total entrées − Total sorties" benefit="Un solde net positif indique que vous avez encaissé plus que dépensé sur la période." />
             </div>
             <p className="text-lg font-display font-bold">{fmt(totalCredit - totalDebit)}</p>
           </CardContent>
@@ -73,7 +81,10 @@ export default function TransactionsPage() {
         <Card className={uncategorizedCount > 0 ? "border-warning/30" : ""}>
           <CardContent className="p-3.5">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Non catégorisées</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Non catégorisées</span>
+                <InfoTooltip title="Transactions non catégorisées" description="Nombre de mouvements bancaires importés sans catégorie comptable associée." benefit="Catégorisez ces transactions pour avoir un résultat comptable fiable. Utilisez le bouton IA pour une suggestion automatique." />
+              </div>
               <AlertCircle className="h-3.5 w-3.5 text-warning" />
             </div>
             <p className={`text-lg font-display font-bold ${uncategorizedCount > 0 ? "text-warning" : "text-success"}`}>{uncategorizedCount}</p>

@@ -295,7 +295,10 @@ export default function VATPage() {
         <TabsContent value="evolution" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">TVA mensuelle — 6 derniers mois</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-medium">TVA mensuelle — 6 derniers mois</CardTitle>
+                <InfoTooltip title="TVA mensuelle — 6 derniers mois" description="Évolution mois par mois de la TVA collectée (sur ventes), déductible (sur achats) et nette à reverser." benefit="Repérez les mois à forte TVA nette pour provisionner à l'avance et éviter les tensions de trésorerie." />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[280px]">
@@ -318,21 +321,30 @@ export default function VATPage() {
             <Card>
               <CardContent className="p-4 text-center">
                 <TrendingUp className="h-4 w-4 text-muted-foreground mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-1">Moyenne collectée / mois</p>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-xs text-muted-foreground">Moyenne collectée / mois</p>
+                  <InfoTooltip title="Moyenne TVA collectée / mois" description="Moyenne mensuelle de la TVA facturée à vos clients sur les 6 derniers mois." benefit="Utilisez cette moyenne pour estimer votre TVA collectée des prochains mois et anticiper votre déclaration." />
+                </div>
                 <p className="text-xl font-display font-bold">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.collected, 0) / monthlyVATData.length))}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <TrendingDown className="h-4 w-4 text-success mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-1">Moyenne déductible / mois</p>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-xs text-muted-foreground">Moyenne déductible / mois</p>
+                  <InfoTooltip title="Moyenne TVA déductible / mois" description="Moyenne mensuelle de la TVA récupérable sur vos achats et dépenses professionnelles." benefit="Plus cette moyenne est élevée, moins vous reversez à l'État. Assurez-vous de collecter toutes vos factures d'achat." />
+                </div>
                 <p className="text-xl font-display font-bold text-success">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.deductible, 0) / monthlyVATData.length))}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <Percent className="h-4 w-4 text-warning mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground mb-1">Moyenne nette / mois</p>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-xs text-muted-foreground">Moyenne nette / mois</p>
+                  <InfoTooltip title="Moyenne TVA nette / mois" description="Moyenne mensuelle du montant que vous devrez reverser à l'État lors de votre prochaine déclaration." formula="Moyenne collectée − Moyenne déductible" benefit="Provisionnez ce montant chaque mois pour ne jamais être pris au dépourvu à l'échéance." />
+                </div>
                 <p className="text-xl font-display font-bold text-warning">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.net, 0) / monthlyVATData.length))}</p>
               </CardContent>
             </Card>

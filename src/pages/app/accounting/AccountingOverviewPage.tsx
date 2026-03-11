@@ -53,7 +53,10 @@ export default function AccountingOverviewPage() {
       <motion.div variants={item} className="grid lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Recettes vs Dépenses</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              Recettes vs Dépenses
+              <InfoTooltip title="Recettes vs Dépenses" description="Comparaison mensuelle de vos encaissements et de vos charges sur les 6 derniers mois." benefit="Un écart croissant entre recettes et dépenses indique une amélioration de votre rentabilité." />
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[260px]">
@@ -73,7 +76,10 @@ export default function AccountingOverviewPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Répartition recettes</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              Répartition recettes
+              <InfoTooltip title="Répartition recettes par catégorie" description="Part de chaque activité dans votre chiffre d'affaires total sur la période." benefit="Visualisez votre dépendance aux différents types de missions et diversifiez si une catégorie représente plus de 50% du CA." />
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[160px]">
@@ -107,6 +113,7 @@ export default function AccountingOverviewPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Percent className="h-4 w-4 text-warning" /> TVA
+              <InfoTooltip title="Résumé TVA" description="Synthèse de votre TVA collectée, déductible et nette à reverser pour la période en cours." formula="TVA nette = TVA collectée − TVA déductible" benefit="Provisionnez chaque mois le montant de TVA nette pour éviter les difficultés de trésorerie à l'échéance." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -136,6 +143,7 @@ export default function AccountingOverviewPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <PiggyBank className="h-4 w-4 text-info" /> Cotisations sociales
+              <InfoTooltip title="Cotisations sociales" description="Suivi de vos cotisations URSSAF, retraite et prévoyance : montant estimé, déjà payé et reste à payer." benefit="Gardez toujours de la trésorerie disponible pour les échéances URSSAF. Un retard entraîne des majorations de 5%." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -165,6 +173,7 @@ export default function AccountingOverviewPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Bot className="h-4 w-4 text-primary" /> Suggestions IA
+              <InfoTooltip title="Suggestions IA" description="Alertes et actions recommandées générées automatiquement par l'IA à partir de l'analyse de vos transactions et documents." benefit="Traitez ces suggestions régulièrement pour maintenir une comptabilité à jour et éviter les anomalies en fin d'exercice." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

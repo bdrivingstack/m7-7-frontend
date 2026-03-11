@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -88,6 +89,7 @@ export default function PaymentLinksPage() {
             <div className="flex items-center gap-2 mb-2">
               <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Liens actifs</span>
+              <InfoTooltip title="Liens de paiement actifs" description="Nombre de liens de paiement actuellement actifs et non expirés, en attente d'être réglés par vos clients." benefit="Chaque lien actif représente une opportunité d'encaissement. Relancez les clients qui n'ont pas encore payé." />
             </div>
             <p className="text-2xl font-display font-bold">
               {paymentLinks.filter((l) => l.status === "active").length}
@@ -99,6 +101,7 @@ export default function PaymentLinksPage() {
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-3.5 w-3.5 text-warning" />
               <span className="text-xs text-muted-foreground">En attente</span>
+              <InfoTooltip title="Montant en attente" description="Valeur totale des liens de paiement actifs non encore réglés par vos clients." benefit="Envoyez des rappels aux clients dont le lien n'a pas été utilisé depuis plus de 3 jours." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{fmtEUR(totalPending)}</p>
           </CardContent>
@@ -108,6 +111,7 @@ export default function PaymentLinksPage() {
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-3.5 w-3.5 text-success" />
               <span className="text-xs text-muted-foreground">Encaissé</span>
+              <InfoTooltip title="Total encaissé via liens" description="Somme des paiements reçus via des liens de paiement avec statut réglé." benefit="Comparez ce montant au total facturé pour mesurer l'efficacité de vos liens de paiement vs facturation classique." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{fmtEUR(totalPaid)}</p>
           </CardContent>
@@ -117,6 +121,7 @@ export default function PaymentLinksPage() {
             <div className="flex items-center gap-2 mb-2">
               <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Taux de conversion</span>
+              <InfoTooltip title="Taux de conversion des liens" description="Pourcentage de liens de paiement qui ont abouti à un paiement effectif." formula="(Liens payés ÷ Total liens créés) × 100" benefit="Un taux supérieur à 60% est excellent. En dessous de 40%, revoir le message d'accompagnement ou le délai d'expiration." />
             </div>
             <p className="text-2xl font-display font-bold">{conversionRate}%</p>
           </CardContent>
