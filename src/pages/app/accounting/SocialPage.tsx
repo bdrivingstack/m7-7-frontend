@@ -349,5 +349,6 @@ export default function SocialPage() {
         </TabsContent>
       </Tabs>
     </motion.div>
+  </motion.div>
   );
 }
