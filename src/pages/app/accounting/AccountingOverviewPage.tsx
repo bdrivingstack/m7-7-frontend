@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import {
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle, DollarSign,
   Landmark, ArrowUpRight, ArrowDownRight, Bot, Calendar, Percent,
@@ -40,12 +41,12 @@ export default function AccountingOverviewPage() {
 
       {/* KPI row */}
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
-        <KPICard label="Recettes" value={fmt(stats.totalRevenue)} icon={<ArrowUpRight className="h-4 w-4 text-success" />} />
-        <KPICard label="Dépenses" value={fmt(stats.totalExpenses)} icon={<ArrowDownRight className="h-4 w-4 text-destructive" />} />
-        <KPICard label="Résultat net" value={fmt(stats.netResult)} accent />
-        <KPICard label="TVA à payer" value={fmt(stats.vatDue)} icon={<Percent className="h-4 w-4 text-warning" />} />
-        <KPICard label="Non catégorisées" value={stats.uncategorized.toString()} warning link="/app/accounting/transactions" />
-        <KPICard label="Non rapprochées" value={stats.unreconciled.toString()} warning link="/app/accounting/reconciliation" />
+        <KPICard label="Recettes" value={fmt(stats.totalRevenue)} icon={<ArrowUpRight className="h-4 w-4 text-success" />} tooltip={{ title: "Recettes", description: "Total des encaissements comptabilisés sur la période : factures payées + autres produits.", formula: "Σ factures PAID + produits exceptionnels", benefit: "Base de calcul de votre résultat et de vos cotisations sociales." }} />
+        <KPICard label="Dépenses" value={fmt(stats.totalExpenses)} icon={<ArrowDownRight className="h-4 w-4 text-destructive" />} tooltip={{ title: "Dépenses", description: "Total des charges enregistrées sur la période : achats, frais généraux, salaires, etc.", formula: "Σ transactions catégorisées en charge", benefit: "Réduire vos charges augmente directement votre résultat net imposable." }} />
+        <KPICard label="Résultat net" value={fmt(stats.netResult)} accent tooltip={{ title: "Résultat net", description: "Différence entre vos recettes et vos dépenses sur la période.", formula: "Recettes − Dépenses", benefit: "Un résultat positif = bénéfice. Un résultat négatif = déficit. Base de votre impôt sur les bénéfices." }} />
+        <KPICard label="TVA à payer" value={fmt(stats.vatDue)} icon={<Percent className="h-4 w-4 text-warning" />} tooltip={{ title: "TVA nette à reverser", description: "Montant de TVA à déclarer et reverser à l'administration fiscale.", formula: "TVA collectée − TVA déductible", benefit: "À déclarer sur votre CA3 mensuelle ou trimestrielle selon votre régime." }} />
+        <KPICard label="Non catégorisées" value={stats.uncategorized.toString()} warning link="/app/accounting/transactions" tooltip={{ title: "Transactions non catégorisées", description: "Transactions bancaires importées qui n'ont pas encore été associées à une catégorie comptable.", benefit: "Catégoriser ces transactions est indispensable pour avoir un résultat comptable fiable." }} />
+        <KPICard label="Non rapprochées" value={stats.unreconciled.toString()} warning link="/app/accounting/reconciliation" tooltip={{ title: "Transactions non rapprochées", description: "Mouvements bancaires non encore associés à une facture ou dépense dans M7Sept.", benefit: "Le rapprochement bancaire garantit que vos livres comptables correspondent à votre solde réel." }} />
       </motion.div>
 
       {/* Charts */}
@@ -185,12 +186,15 @@ export default function AccountingOverviewPage() {
   );
 }
 
-function KPICard({ label, value, icon, accent, warning, link }: any) {
+function KPICard({ label, value, icon, accent, warning, link, tooltip }: any) {
   const content = (
     <Card className={warning ? "border-warning/30" : accent ? "border-primary/20" : ""}>
       <CardContent className="p-3.5">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{label}</span>
+            {tooltip && <InfoTooltip {...tooltip} size="sm" />}
+          </div>
           {icon}
         </div>
         <div className={`text-lg font-display font-bold ${warning ? "text-warning" : accent ? "text-primary" : ""}`}>{value}</div>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import {
   Percent, Calendar, CheckCircle, Clock, AlertTriangle,
   Download, TrendingUp, TrendingDown, FileText, ChevronRight,
@@ -125,15 +126,24 @@ export default function VATPage() {
               </div>
               <div className="flex gap-6 text-center">
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Collectée</p>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Collectée</p>
+                    <InfoTooltip title="TVA collectée" description="TVA que vous avez facturée à vos clients sur la période. Vous la devez à l'État." formula="Σ TVA de toutes les factures émises et payées" benefit="Ce montant doit être reversé à l'administration fiscale lors de votre déclaration." />
+                  </div>
                   <p className="text-xl font-display font-bold">{fmt(current.collected)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Déductible</p>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Déductible</p>
+                    <InfoTooltip title="TVA déductible" description="TVA que vous avez payée sur vos achats et dépenses professionnelles. Elle vient en déduction de la TVA collectée." formula="Σ TVA des factures d'achat / dépenses professionnelles" benefit="Plus vous avez de dépenses professionnelles avec TVA, moins vous en reversez à l'État." />
+                  </div>
                   <p className="text-xl font-display font-bold text-success">-{fmt(current.deductible)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">À payer</p>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">À payer</p>
+                    <InfoTooltip title="TVA nette à reverser" description="Montant final à déclarer et payer à l'administration fiscale sur la période." formula="TVA collectée − TVA déductible" benefit="À régler avant la date limite de votre déclaration pour éviter les pénalités de retard." />
+                  </div>
                   <p className="text-2xl font-display font-bold text-warning">{fmt(current.due)}</p>
                 </div>
               </div>

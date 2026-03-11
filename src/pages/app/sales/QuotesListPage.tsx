@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Link } from "react-router-dom";
 import {
   Search, Plus, Eye, Copy, Send, MoreHorizontal, Download,
@@ -58,13 +59,19 @@ export default function QuotesListPage() {
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">En attente</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">En attente</p>
+              <InfoTooltip title="Devis en attente" description="Montant total des devis envoyés aux clients et qui n'ont pas encore reçu de réponse." benefit="Relancez les devis sans réponse après 5-7 jours pour améliorer votre taux de conversion." />
+            </div>
             <p className="text-xl font-display font-bold text-info">{fmtEUR(totalPending)}</p>
           </CardContent>
         </Card>
         <Card className="border-success/20">
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Acceptés</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Acceptés</p>
+              <InfoTooltip title="Devis acceptés" description="Montant total des devis que vos clients ont acceptés. Ces devis peuvent être convertis en facture en 1 clic." formula="Σ montants des devis dont statut = ACCEPTED" benefit="Un devis accepté est un engagement commercial. Convertissez-le en facture rapidement pour déclencher le paiement." />
+            </div>
             <p className="text-xl font-display font-bold text-success">{fmtEUR(totalAccepted)}</p>
           </CardContent>
         </Card>

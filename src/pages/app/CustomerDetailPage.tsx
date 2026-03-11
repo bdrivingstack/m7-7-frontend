@@ -180,6 +180,7 @@ export default function CustomerDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">CA total</span>
+              <InfoTooltip title="CA total client" description="Chiffre d'affaires cumulé généré par ce client depuis le début de la relation commerciale." formula="Σ montants HT de toutes les factures payées de ce client" benefit="Identifier vos clients les plus rentables pour prioriser votre relation commerciale." />
             </div>
             <p className="text-xl font-display font-bold">{fmtEUR(customer.totalRevenue)}</p>
             <p className="text-xs text-muted-foreground">{customer.totalInvoices} factures</p>
@@ -190,6 +191,7 @@ export default function CustomerDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-3.5 w-3.5 text-success" />
               <span className="text-xs text-muted-foreground">Encaissé</span>
+              <InfoTooltip title="Montant encaissé" description="Total des paiements effectivement reçus de ce client." benefit="Différence entre CA total et montant encaissé = impayés en cours." />
             </div>
             <p className="text-xl font-display font-bold text-success">{fmtEUR(customer.totalPaid)}</p>
             <p className="text-xs text-muted-foreground">
@@ -202,6 +204,7 @@ export default function CustomerDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className={`h-3.5 w-3.5 ${customer.totalUnpaid > 0 ? "text-destructive" : "text-muted-foreground"}`} />
               <span className="text-xs text-muted-foreground">Impayés</span>
+              <InfoTooltip title="Impayés en cours" description="Montant total des factures envoyées non encore réglées par ce client." benefit="Un impayé élevé par rapport au CA total peut indiquer un risque de crédit à surveiller." />
             </div>
             <p className={`text-xl font-display font-bold ${customer.totalUnpaid > 0 ? "text-destructive" : "text-muted-foreground"}`}>
               {customer.totalUnpaid > 0 ? fmtEUR(customer.totalUnpaid) : "—"}
@@ -214,6 +217,7 @@ export default function CustomerDetailPage() {
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Délai moyen</span>
+              <InfoTooltip title="Délai moyen de paiement" description="Nombre de jours moyen entre l'émission d'une facture et son règlement par ce client." formula="Moyenne de (date paiement − date facture) sur toutes les factures payées" benefit="Un délai > 30j peut signaler un client en difficulté ou de mauvaise foi. En dessous, c'est excellent." />
             </div>
             <p className={`text-xl font-display font-bold ${customer.averagePaymentDelay > 40 ? "text-destructive" : customer.averagePaymentDelay > 30 ? "text-warning" : "text-success"}`}>
               {customer.averagePaymentDelay}j

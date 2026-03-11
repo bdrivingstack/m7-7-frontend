@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -126,6 +127,7 @@ export default function PaymentsPage() {
             <div className="flex items-center gap-2 mb-2">
               <ArrowUpRight className="h-3.5 w-3.5 text-success" />
               <span className="text-xs text-muted-foreground">Encaissé (total)</span>
+              <InfoTooltip title="Total encaissé" description="Somme de tous les paiements avec statut 'complété' sur l'ensemble de la période." formula="Σ montants des paiements dont statut = completed" benefit="Reflète la trésorerie réellement reçue, indépendamment des factures émises." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{fmtEUR(totalReceived)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{payments.filter(p => p.status === "completed").length} transactions</p>
@@ -136,6 +138,7 @@ export default function PaymentsPage() {
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-3.5 w-3.5 text-warning" />
               <span className="text-xs text-muted-foreground">En attente</span>
+              <InfoTooltip title="Paiements en attente" description="Paiements initiés mais pas encore confirmés — chèques en cours d'encaissement, virements en transit, paiements Stripe non capturés." benefit="À surveiller régulièrement pour détecter les échecs de paiement ou les délais bancaires anormaux." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{fmtEUR(totalPending)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{payments.filter(p => p.status === "pending").length} paiement(s)</p>
@@ -146,6 +149,7 @@ export default function PaymentsPage() {
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className={`h-3.5 w-3.5 ${growthPct >= 0 ? "text-success" : "text-destructive"}`} />
               <span className="text-xs text-muted-foreground">Ce mois vs N-1</span>
+              <InfoTooltip title="Croissance mensuelle" description="Variation en % des encaissements du mois en cours par rapport au mois précédent." formula="((Mois actuel - Mois précédent) ÷ Mois précédent) × 100" benefit="Indicateur de tendance rapide. Une valeur positive indique une accélération des encaissements." />
             </div>
             <p className={`text-2xl font-display font-bold ${growthPct >= 0 ? "text-success" : "text-destructive"}`}>
               {growthPct >= 0 ? "+" : ""}{growthPct}%
@@ -158,6 +162,7 @@ export default function PaymentsPage() {
             <div className="flex items-center gap-2 mb-2">
               <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Frais Stripe/CB</span>
+              <InfoTooltip title="Frais bancaires & Stripe" description="Total des commissions prélevées par Stripe et les organismes bancaires sur vos transactions par carte." formula="Σ frais de chaque transaction (généralement 1.4% + 0.25€ pour les cartes EU)" benefit="Ces frais sont déductibles de votre résultat imposable. Pensez à les catégoriser en comptabilité." />
             </div>
             <p className="text-2xl font-display font-bold">{fmtEUR(totalFees)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">~{((totalFees / totalReceived) * 100).toFixed(1)}% du CA encaissé</p>
