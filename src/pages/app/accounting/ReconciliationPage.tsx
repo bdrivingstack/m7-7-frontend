@@ -72,7 +72,7 @@ export default function ReconciliationPage() {
               <AlertCircle className="h-4 w-4 text-warning" />
               Transactions à rapprocher ({unmatched.length})
               <InfoTooltip title="Transactions à rapprocher" description="Ces mouvements bancaires ont été importés mais n'ont pas encore été associés à une facture ou une dépense dans M7Sept." benefit="Cliquez sur 'Associer' pour lier manuellement, ou utilisez 'IA' pour une suggestion automatique basée sur le montant et la date." />
-          </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {unmatched.map(item => {
@@ -112,7 +112,7 @@ export default function ReconciliationPage() {
             <CheckCircle className="h-4 w-4 text-success" />
             Transactions rapprochées ({matched.length})
             <InfoTooltip title="Transactions rapprochées" description="Ces mouvements bancaires ont été associés avec succès à une pièce comptable dans M7Sept." benefit="L'historique des rapprochements vous permet de justifier chaque mouvement en cas de contrôle fiscal." />
-        </div>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {matched.map(item => {
