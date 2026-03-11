@@ -5,12 +5,12 @@ import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  PiggyBank, Calendar, CheckCircle, Clock, AlertTriangle,
+  PiggyBank, Calendar, CheckCircle, Clock,
   Download, TrendingUp, Info, ChevronRight, ExternalLink,
-  Building2, User, Landmark, Shield,
+  Building2, Shield,
 } from "lucide-react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar,
 } from "recharts";
 import { socialContributions } from "@/lib/accounting-data";
@@ -54,7 +54,6 @@ const typeConfig = {
   prevoyance: { label: "Prévoyance", color: "bg-emerald-500/10 text-emerald-500", icon: Shield },
 };
 
-// Contribution breakdown by type
 const cotisationLines = [
   { label: "Maladie-maternité", rate: 6.5, base: 47850, amount: 3110 },
   { label: "Retraite de base", rate: 17.75, base: 42705, amount: 7580 },
@@ -84,7 +83,6 @@ export default function SocialPage() {
   });
 
   const totalPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
-  const totalPaid2024 = payments.filter((p) => p.status === "paid" && p.period.includes("2024")).reduce((s, p) => s + p.amount, 0);
   const progressPct = Math.round((socialContributions.paid / socialContributions.estimated) * 100);
 
   return (
@@ -254,6 +252,7 @@ export default function SocialPage() {
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-sm font-medium">Détail des cotisations — Base {fmt(47850)}</CardTitle>
                   <InfoTooltip title="Détail des cotisations sociales" description="Décomposition de vos cotisations par organisme : maladie, retraite de base, retraite complémentaire, invalidité-décès, formation professionnelle." benefit="Comprendre la répartition permet d'anticiper les remboursements en cas de maladie ou de faire valoir vos droits à la retraite." />
+                </div>
                 <p className="text-xs text-muted-foreground">Taux moyen global : {socialContributions.rate}%</p>
               </div>
             </CardHeader>
@@ -348,7 +347,7 @@ export default function SocialPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
     </motion.div>
-  </motion.div>
   );
 }
