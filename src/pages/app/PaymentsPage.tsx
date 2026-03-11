@@ -340,7 +340,9 @@ export default function PaymentsPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Encaissements vs Décaissements — 6 mois</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Encaissements vs Décaissements — 6 mois</CardTitle>
+                  <InfoTooltip title="Encaissements vs Décaissements" description="Comparaison mensuelle des entrées d'argent (paiements clients reçus) et des sorties (dépenses payées) sur les 6 derniers mois." benefit="Un mois où les décaissements dépassent les encaissements indique un mois négatif pour la trésorerie — à surveiller si cela se répète." />
               </CardHeader>
               <CardContent>
                 <div className="h-[260px]">
@@ -360,7 +362,9 @@ export default function PaymentsPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Cash net cumulé</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Cash net cumulé</CardTitle>
+                  <InfoTooltip title="Cash net cumulé" description="Évolution de votre trésorerie nette au fil des mois : cumul des encaissements moins le cumul des décaissements." formula="Cash mois N = Cash mois N-1 + Encaissements N − Décaissements N" benefit="Une courbe ascendante constante indique une bonne santé de trésorerie. Une courbe plate ou descendante nécessite une action." />
               </CardHeader>
               <CardContent>
                 <div className="h-[260px]">

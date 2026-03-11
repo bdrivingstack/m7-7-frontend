@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Switch } from "@/components/ui/switch";
 import { Send, Clock, AlertTriangle, Bot, Settings, Plus } from "lucide-react";
 import { reminderRules, reminderEvents, fmtEUR } from "@/lib/sales-data";
@@ -27,6 +28,7 @@ export default function RemindersPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Settings className="h-4 w-4" /> Règles de relance automatique
+            <InfoTooltip title="Règles de relance automatique" description="Séquences d'emails ou SMS envoyés automatiquement aux clients qui n'ont pas payé leur facture dans les délais configurés." benefit="Les relances automatiques augmentent le taux de recouvrement de 30 à 50% sans effort manuel. Configurez au moins 3 niveaux (J+7, J+15, J+30)." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -57,6 +59,7 @@ export default function RemindersPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Clock className="h-4 w-4" /> Historique des relances
+            <InfoTooltip title="Historique des relances" description="Journal de toutes les relances envoyées aux clients : date, facture concernée, canal utilisé et statut de livraison." benefit="Consultez l'historique avant d'appeler un client pour avoir le contexte complet des communications précédentes." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -110,6 +111,7 @@ export default function SocialPage() {
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Estimé annuel</span>
+              <InfoTooltip title="Cotisations sociales estimées" description="Estimation des cotisations sociales dues sur l'année complète, calculée sur la base de votre CA déclaré." formula="CA annuel × taux de cotisations selon votre régime (BNC/BIC services/BIC vente)" benefit="Cette estimation vous permet de provisionner chaque mois la bonne somme pour éviter les mauvaises surprises aux échéances URSSAF." />
             </div>
             <p className="text-2xl font-display font-bold">{fmt(socialContributions.estimated)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Taux moyen {socialContributions.rate}%</p>
@@ -120,6 +122,7 @@ export default function SocialPage() {
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-3.5 w-3.5 text-success" />
               <span className="text-xs text-muted-foreground">Déjà réglé</span>
+              <InfoTooltip title="Cotisations déjà réglées" description="Total des cotisations sociales effectivement versées à l'URSSAF sur l'année en cours." benefit="Comparez ce montant à l'estimation annuelle pour savoir si vous êtes à jour dans vos versements." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{fmt(socialContributions.paid)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{progressPct}% de l'estimation</p>
@@ -130,6 +133,7 @@ export default function SocialPage() {
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-3.5 w-3.5 text-warning" />
               <span className="text-xs text-muted-foreground">À payer maintenant</span>
+              <InfoTooltip title="Cotisations à payer maintenant" description="Montant des cotisations dont l'échéance est passée ou arrive dans moins de 7 jours." benefit="Réglez rapidement pour éviter les majorations de retard URSSAF (5% + 0.2% par mois de retard)." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{fmt(totalPending)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{payments.filter(p => p.status === "pending").length} échéances</p>
@@ -140,6 +144,7 @@ export default function SocialPage() {
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Prochaine échéance</span>
+              <InfoTooltip title="Prochaine échéance URSSAF" description="Date limite du prochain versement de cotisations sociales à l'URSSAF." benefit="Notez cette date et assurez-vous d'avoir les fonds disponibles. M7Sept vous enverra un rappel automatique." />
             </div>
             <p className="text-xl font-display font-bold">
               {new Date(socialContributions.nextDeadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
@@ -246,7 +251,9 @@ export default function SocialPage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">Détail des cotisations — Base {fmt(47850)}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Détail des cotisations — Base {fmt(47850)}</CardTitle>
+                  <InfoTooltip title="Détail des cotisations sociales" description="Décomposition de vos cotisations par organisme : maladie, retraite de base, retraite complémentaire, invalidité-décès, formation professionnelle." benefit="Comprendre la répartition permet d'anticiper les remboursements en cas de maladie ou de faire valoir vos droits à la retraite." />
                 <p className="text-xs text-muted-foreground">Taux moyen global : {socialContributions.rate}%</p>
               </div>
             </CardHeader>

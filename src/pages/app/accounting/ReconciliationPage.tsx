@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <CheckCircle className="h-4 w-4 text-success" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Rapprochées</span>
+              <InfoTooltip title="Transactions rapprochées" description="Mouvements bancaires qui ont été associés à une facture ou dépense dans M7Sept." benefit="Une transaction rapprochée signifie que votre comptabilité correspond à votre relevé bancaire réel." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{matched.length}</p>
           </CardContent>
@@ -43,6 +45,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <AlertCircle className="h-4 w-4 text-warning" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">En attente</span>
+              <InfoTooltip title="Transactions en attente de rapprochement" description="Mouvements bancaires importés non encore associés à une pièce comptable." benefit="Rapprochez ces transactions rapidement pour maintenir une comptabilité fiable et détecter d'éventuelles erreurs ou fraudes." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{unmatched.length}</p>
           </CardContent>
@@ -52,6 +55,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <GitBranch className="h-4 w-4 text-primary" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Taux</span>
+              <InfoTooltip title="Taux de rapprochement" description="Pourcentage de transactions bancaires qui ont été rapprochées avec succès." formula="(Transactions rapprochées ÷ Total transactions) × 100" benefit="Un taux de 100% signifie que votre comptabilité est parfaitement alignée avec votre banque." />
             </div>
             <p className="text-2xl font-display font-bold text-primary">
               {Math.round((matched.length / reconciliationItems.length) * 100)}%
@@ -67,7 +71,7 @@ export default function ReconciliationPage() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-warning" />
               Transactions à rapprocher ({unmatched.length})
-            </CardTitle>
+              <InfoTooltip title="Transactions à rapprocher" description="Ces mouvements bancaires ont été importés mais n'ont pas encore été associés à une facture ou une dépense dans M7Sept." benefit="Cliquez sur 'Associer' pour lier manuellement, ou utilisez 'IA' pour une suggestion automatique basée sur le montant et la date." />
           </CardHeader>
           <CardContent className="space-y-2">
             {unmatched.map(item => {
@@ -106,7 +110,7 @@ export default function ReconciliationPage() {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success" />
             Transactions rapprochées ({matched.length})
-          </CardTitle>
+            <InfoTooltip title="Transactions rapprochées" description="Ces mouvements bancaires ont été associés avec succès à une pièce comptable dans M7Sept." benefit="L'historique des rapprochements vous permet de justifier chaque mouvement en cas de contrôle fiscal." />
         </CardHeader>
         <CardContent className="space-y-2">
           {matched.map(item => {

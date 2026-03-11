@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -93,6 +94,7 @@ export default function RecurringPage() {
             <div className="flex items-center gap-2 mb-2">
               <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Modèles actifs</span>
+              <InfoTooltip title="Modèles récurrents actifs" description="Nombre de modèles de facturation récurrente en cours d'exécution automatique." benefit="Chaque modèle actif génère des factures automatiquement à la fréquence configurée, sans intervention manuelle." />
             </div>
             <p className="text-2xl font-display font-bold">{activeCount}</p>
           </CardContent>
@@ -102,6 +104,7 @@ export default function RecurringPage() {
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">MRR récurrent</span>
+              <InfoTooltip title="MRR — Monthly Recurring Revenue" description="Revenu mensuel récurrent garanti par vos contrats de facturation automatique actifs." formula="Σ montants mensualisés de tous les modèles actifs" benefit="Le MRR est la base de votre visibilité financière. Plus il est élevé, plus votre trésorerie est prévisible." />
             </div>
             <p className="text-2xl font-display font-bold">{fmtEUR(mrr)}</p>
           </CardContent>
@@ -111,6 +114,7 @@ export default function RecurringPage() {
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Prochain mois</span>
+              <InfoTooltip title="Facturation du mois prochain" description="Montant total qui sera automatiquement facturé le mois prochain si tous les modèles restent actifs." benefit="Anticipez vos encaissements et votre trésorerie en vous basant sur cette projection." />
             </div>
             <p className="text-2xl font-display font-bold">{fmtEUR(nextMonth)}</p>
           </CardContent>
@@ -120,6 +124,7 @@ export default function RecurringPage() {
             <div className="flex items-center gap-2 mb-2">
               <Users className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Clients concernés</span>
+              <InfoTooltip title="Clients avec facturation récurrente" description="Nombre de clients distincts qui ont au moins un modèle de facturation récurrente actif." benefit="Des clients sous contrat récurrent sont plus fidèles et plus prévisibles financièrement." />
             </div>
             <p className="text-2xl font-display font-bold">
               {new Set(templates.filter((t) => t.status === "active").map((t) => t.client)).size}

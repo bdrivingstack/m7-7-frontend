@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,19 +30,28 @@ export default function PurchasesBookPage() {
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total TTC</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total TTC</p>
+              <InfoTooltip title="Total achats TTC" description="Montant total de vos achats et dépenses toutes taxes comprises sur la période." benefit="Ce montant inclut la TVA que vous pourrez déduire. Vérifiez que chaque dépense est bien justifiée par une facture." />
+            </div>
             <p className="text-xl font-display font-bold">{fmt(totalExpenses)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">TVA déductible</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">TVA déductible</p>
+              <InfoTooltip title="TVA déductible" description="TVA payée sur vos achats professionnels, récupérable auprès de l'administration fiscale." formula="Σ TVA de toutes les factures d'achat professionnelles" benefit="Cette TVA vient en déduction de votre TVA collectée, réduisant votre TVA nette à reverser." />
+            </div>
             <p className="text-xl font-display font-bold text-success">{fmt(totalVAT)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Net HT</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Net HT</p>
+              <InfoTooltip title="Charges nettes HT" description="Total de vos dépenses hors taxes. Ce montant est déductible de votre résultat imposable." formula="Total TTC − TVA déductible" benefit="Plus vos charges HT sont élevées, plus votre résultat imposable baisse. Conservez toutes les factures justificatives." />
+            </div>
             <p className="text-xl font-display font-bold text-destructive">{fmt(totalNet)}</p>
           </CardContent>
         </Card>

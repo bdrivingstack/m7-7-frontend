@@ -259,7 +259,9 @@ export default function ReportsPage() {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold">CA vs Charges vs Résultat — mensuel</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">CA vs Charges vs Résultat — mensuel</CardTitle>
+                  <InfoTooltip title="CA vs Charges vs Résultat" description="Comparaison mensuelle de vos recettes (CA HT), de vos dépenses totales et de votre résultat net sur les 12 derniers mois." formula="Résultat = CA HT − Charges totales" benefit="Visualiser ces 3 courbes ensemble permet de détecter les mois déficitaires et les tendances de rentabilité." />
                 <div className="flex gap-3 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-primary" />CA</span>
                   <span className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-destructive/60" />Charges</span>
@@ -298,7 +300,9 @@ export default function ReportsPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Répartition du CA par activité</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Répartition du CA par activité</CardTitle>
+                  <InfoTooltip title="Répartition du CA par activité" description="Décomposition de votre chiffre d'affaires total par catégorie ou type de service vendu." benefit="Identifier les activités les plus rentables pour concentrer vos efforts commerciaux sur les segments à plus forte valeur." />
               </CardHeader>
               <CardContent>
                 <div className="flex gap-4 items-center">
@@ -330,7 +334,9 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Répartition des charges</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Répartition des charges</CardTitle>
+                  <InfoTooltip title="Répartition des charges" description="Décomposition de vos dépenses totales par catégorie : achats, frais généraux, charges sociales, loyers, etc." benefit="Repérer les postes de dépenses disproportionnés pour identifier les leviers d'optimisation." />
               </CardHeader>
               <CardContent>
                 <div className="space-y-2.5">
@@ -359,7 +365,9 @@ export default function ReportsPage() {
           {/* Comparaison N vs N-1 */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Comparaison N vs N-1 — CA mensuel</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold">Comparaison N vs N-1 — CA mensuel</CardTitle>
+                <InfoTooltip title="Comparaison N vs N-1" description="Comparaison du CA mensuel de l'année en cours avec la même période de l'année précédente." formula="Variation = ((CA N − CA N-1) ÷ CA N-1) × 100" benefit="Permet de détecter une saisonnalité, une croissance ou un ralentissement par rapport à l'historique." />
             </CardHeader>
             <CardContent>
               <div className="h-[220px]">
@@ -380,7 +388,9 @@ export default function ReportsPage() {
           {/* Évolution trimestrielle */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Performance trimestrielle</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold">Performance trimestrielle</CardTitle>
+                <InfoTooltip title="Performance trimestrielle" description="Synthèse du CA, des charges et du résultat par trimestre sur l'année en cours." benefit="Une vue trimestrielle lisse les variations mensuelles et donne une lecture plus stable de la performance annuelle." />
             </CardHeader>
             <CardContent className="p-0">
               <table className="w-full text-xs">
@@ -447,7 +457,9 @@ export default function ReportsPage() {
           {/* Devis vs Gagnés */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Devis émis vs gagnés — 6 mois</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold">Devis émis vs gagnés — 6 mois</CardTitle>
+                <InfoTooltip title="Devis émis vs gagnés" description="Nombre de devis envoyés comparé au nombre de devis acceptés par mois sur les 6 derniers mois." formula="Taux de conversion = Devis acceptés ÷ Devis émis × 100" benefit="Un écart croissant indique une baisse de la qualité des propositions ou un marché plus compétitif." />
             </CardHeader>
             <CardContent>
               <div className="h-[240px]">
@@ -469,7 +481,9 @@ export default function ReportsPage() {
             {/* Montant gagné par mois */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Montant signé par mois</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Montant signé par mois</CardTitle>
+                  <InfoTooltip title="Montant signé par mois" description="Valeur totale des devis acceptés chaque mois. Représente votre pipeline commercial converti." benefit="Un montant signé élevé en avance annonce de bons encaissements dans les semaines suivantes." />
               </CardHeader>
               <CardContent>
                 <div className="h-[220px]">
@@ -495,7 +509,9 @@ export default function ReportsPage() {
             {/* Top produits/services */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Top services / produits</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Top services / produits</CardTitle>
+                  <InfoTooltip title="Top services / produits" description="Classement de vos lignes de facturation par chiffre d'affaires généré sur la période." benefit="Concentrez vos efforts marketing sur les 2-3 services qui génèrent 80% de votre CA (loi de Pareto)." />
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -551,7 +567,9 @@ export default function ReportsPage() {
           {/* Top clients par CA */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">Top clients par CA — {period}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-sm font-semibold">Top clients par CA — {period}</CardTitle>
+                <InfoTooltip title="Top clients par CA" description="Classement de vos clients par chiffre d'affaires généré sur la période sélectionnée." benefit="Identifiez vos clients stratégiques et surveillez leur concentration pour éviter une dépendance excessive à un seul compte." />
             </CardHeader>
             <CardContent className="p-0">
               <table className="w-full text-xs">
@@ -607,7 +625,9 @@ export default function ReportsPage() {
           <div className="grid md:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Évolution du DSO — 6 mois</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Évolution du DSO — 6 mois</CardTitle>
+                  <InfoTooltip title="DSO — Days Sales Outstanding" description="Nombre de jours moyen nécessaire pour encaisser vos créances clients après facturation." formula="DSO = (Créances clients ÷ CA HT) × Nombre de jours de la période" benefit="Un DSO en baisse = vous êtes payé plus vite. Au-dessus de 45j, envisagez des relances automatiques ou un affacturage." />
               </CardHeader>
               <CardContent>
                 <div className="h-[200px]">
@@ -628,7 +648,9 @@ export default function ReportsPage() {
             {/* Concentration client */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Concentration du CA</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Concentration du CA</CardTitle>
+                  <InfoTooltip title="Concentration du CA" description="Répartition du chiffre d'affaires entre vos clients. Indique si votre CA est concentré sur quelques clients ou bien réparti." benefit="Si 1 client représente plus de 30% de votre CA, vous êtes en situation de dépendance risquée. Diversifiez activement." />
               </CardHeader>
               <CardContent>
                 <div className="h-[200px]">
@@ -657,7 +679,9 @@ export default function ReportsPage() {
             {/* Radar performance globale */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Indicateurs de performance globale</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Indicateurs de performance globale</CardTitle>
+                  <InfoTooltip title="Indicateurs de performance globale" description="Tableau de bord synthétique des ratios financiers clés : taux de marge, rotation des créances, taux de charge, etc." benefit="Ces ratios permettent de benchmarker votre performance dans le temps et par rapport aux standards de votre secteur." />
               </CardHeader>
               <CardContent>
                 <div className="h-[260px]">
@@ -677,7 +701,9 @@ export default function ReportsPage() {
             {/* Récap P&L simplifié */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Compte de résultat simplifié — {period}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">Compte de résultat simplifié — {period}</CardTitle>
+                  <InfoTooltip title="Compte de résultat simplifié" description="Récapitulatif des produits et charges de l'exercice aboutissant au résultat net. Version simplifiée du document comptable officiel." formula="Produits − Charges = Résultat net" benefit="Document de référence pour votre expert-comptable, banquier ou investisseur. À conserver pour vos déclarations fiscales." />
               </CardHeader>
               <CardContent>
                 <div className="space-y-0">
@@ -709,7 +735,7 @@ export default function ReportsPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />Alertes & recommandations IA
-              </CardTitle>
+                <InfoTooltip title="Alertes & recommandations IA" description="Analyse automatique de vos données financières par l'IA pour détecter anomalies, risques et opportunités d'optimisation." benefit="Ces alertes sont générées en temps réel à partir de vos données. Plus vous utilisez M7Sept, plus les recommandations sont précises." icon="?" />
             </CardHeader>
             <CardContent className="space-y-2.5">
               {[

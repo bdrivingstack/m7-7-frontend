@@ -1,3 +1,4 @@
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,19 +31,28 @@ export default function RevenueBookPage() {
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total TTC</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total TTC</p>
+              <InfoTooltip title="Total TTC" description="Somme de toutes les recettes toutes taxes comprises enregistrées dans le livre des recettes sur la période." benefit="Montant brut encaissé ou à encaisser. Inclut la TVA que vous devrez reverser à l'État." />
+            </div>
             <p className="text-xl font-display font-bold">{fmt(totalRevenue)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">TVA collectée</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">TVA collectée</p>
+              <InfoTooltip title="TVA collectée" description="Montant total de TVA inclus dans vos factures de vente sur la période." formula="Σ (Total TTC − Total HT) de toutes les recettes" benefit="Cette TVA doit être reversée à l'État. Elle n'appartient pas à votre trésorerie." />
+            </div>
             <p className="text-xl font-display font-bold text-warning">{fmt(totalVAT)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3.5 text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Net HT</p>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Net HT</p>
+              <InfoTooltip title="Net HT" description="Chiffre d'affaires hors taxes : vos recettes réelles avant TVA. C'est ce montant qui sert de base à votre imposition." formula="Total TTC − TVA collectée" benefit="Le Net HT est la base de calcul de votre résultat imposable et de vos cotisations sociales." />
+            </div>
             <p className="text-xl font-display font-bold text-primary">{fmt(totalNet)}</p>
           </CardContent>
         </Card>
