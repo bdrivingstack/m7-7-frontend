@@ -105,29 +105,31 @@ function computeTotals(lines: InvoiceLine[]) {
   return { totalHT, totalTVA, totalTTC:totalHT+totalTVA };
 }
 
-function RichTextArea({ value, onChange, placeholder, rows=3 }: {
-  value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
-}) {
+// ─── HOOK PARTAGÉ : save/restore sélection + execCommand ──────────────────────
+function useRichEditor(onChange: (v: string) => void) {
   const editorRef  = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
-  const isUpdating = useRef(false);
-  const [showColors, setShowColors] = useState(false);
-  const [fontSize,   setFontSize]   = useState("13");
+  const initialized = useRef(false);
 
-  useEffect(() => {
+  // Init le DOM UNE seule fois avec la valeur initiale
+  // Ne jamais réécrire innerHTML pendant l'édition (casse la sélection)
+  const initContent = (value: string) => {
+    if (initialized.current) return;
     const el = editorRef.current;
-    if (!el || isUpdating.current) return;
-    if (el.innerHTML !== value) el.innerHTML = value;
-  }, [value]);
+    if (el && el.innerHTML === "" && value) {
+      el.innerHTML = value;
+      initialized.current = true;
+    } else if (el && value === "" && !initialized.current) {
+      initialized.current = true;
+    }
+  };
 
-  // Sauvegarde la sélection courante AVANT que le clic sur un bouton la fasse perdre
   const saveSelection = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
   };
 
-  // Restaure la sélection dans l'éditeur puis exécute la commande
-  const exec = (cmd: string, val?: string) => {
+  const restoreAndFocus = () => {
     const el = editorRef.current;
     if (!el) return;
     el.focus();
@@ -135,20 +137,16 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
       const sel = window.getSelection();
       if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
     }
-    document.execCommand(cmd, false, val);
-    handleChange();
   };
 
-  // Applique une taille de police via un span, sans insertHTML (qui insère du texte brut si pas de sélection)
+  const exec = (cmd: string, val?: string) => {
+    restoreAndFocus();
+    document.execCommand(cmd, false, val);
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
   const applyFontSize = (size: string) => {
-    setFontSize(size);
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    if (savedRange.current) {
-      const sel = window.getSelection();
-      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
-    }
+    restoreAndFocus();
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
@@ -157,27 +155,36 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
         const span = document.createElement("span");
         span.style.fontSize = size + "px";
         range.surroundContents(span);
-      } catch {
-        document.execCommand("fontSize", false, "3");
-      }
+      } catch { document.execCommand("fontSize", false, "3"); }
     }
-    handleChange();
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
-  const handleChange = () => {
-    isUpdating.current = true;
-    onChange(editorRef.current?.innerHTML ?? "");
-    setTimeout(() => { isUpdating.current = false; }, 0);
+  const handleInput = () => {
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
+
+  return { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent };
+}
+
+function RichTextArea({ value, onChange, placeholder, rows=3 }: {
+  value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
+}) {
+  const { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent } = useRichEditor(onChange);
+  const [showColors, setShowColors] = useState(false);
+  const [fontSize,   setFontSize]   = useState("13");
+
+  // Init DOM content une seule fois au montage
+  useEffect(() => { initContent(value); }, []); // eslint-disable-line
 
   const COLORS = ["#1a1a2e","#4f46e5","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#64748b","#ffffff"];
   const SIZES  = ["10","11","12","13","14","16","18","20","24"];
 
-  const ToolBtn = ({ onClick, title, children, active=false }: any) => (
+  const ToolBtn = ({ onClick, title, children }: any) => (
     <button type="button"
       onMouseDown={e => { e.preventDefault(); saveSelection(); onClick(); }}
       title={title}
-      className={`h-6 w-6 rounded flex items-center justify-center transition-colors text-muted-foreground hover:text-foreground hover:bg-muted ${active?"bg-muted text-foreground":""}`}>
+      className="h-6 w-6 rounded flex items-center justify-center transition-colors text-muted-foreground hover:text-foreground hover:bg-muted">
       {children}
     </button>
   );
@@ -185,36 +192,26 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   return (
     <div className="w-full">
       <div className="flex flex-wrap items-center gap-0.5 mb-1.5 pb-1.5 border-b border-border/40">
-        {/* Taille — onMouseDown pour sauvegarder la sélection AVANT que le select prenne le focus */}
         <select value={fontSize}
           onMouseDown={() => saveSelection()}
-          onChange={e => applyFontSize(e.target.value)}
+          onChange={e => { setFontSize(e.target.value); applyFontSize(e.target.value); }}
           className="h-6 text-[10px] bg-background border border-border rounded px-1 mr-1 text-muted-foreground">
           {SIZES.map(s=><option key={s} value={s}>{s}px</option>)}
         </select>
-
-        <ToolBtn onClick={()=>exec("bold")}      title="Gras (Ctrl+B)">      <Bold      className="h-3 w-3"/></ToolBtn>
-        <ToolBtn onClick={()=>exec("italic")}    title="Italique (Ctrl+I)">  <Italic    className="h-3 w-3"/></ToolBtn>
-        <ToolBtn onClick={()=>exec("underline")} title="Souligné (Ctrl+U)">  <Underline className="h-3 w-3"/></ToolBtn>
-
+        <ToolBtn onClick={()=>exec("bold")}      title="Gras">       <Bold      className="h-3 w-3"/></ToolBtn>
+        <ToolBtn onClick={()=>exec("italic")}    title="Italique">   <Italic    className="h-3 w-3"/></ToolBtn>
+        <ToolBtn onClick={()=>exec("underline")} title="Souligné">   <Underline className="h-3 w-3"/></ToolBtn>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
-
-        <ToolBtn onClick={()=>exec("justifyLeft")}    title="Gauche">   <AlignLeft    className="h-3 w-3"/></ToolBtn>
-        <ToolBtn onClick={()=>exec("justifyCenter")}  title="Centré">   <AlignCenter  className="h-3 w-3"/></ToolBtn>
-        <ToolBtn onClick={()=>exec("justifyRight")}   title="Droite">   <AlignRight   className="h-3 w-3"/></ToolBtn>
-        <ToolBtn onClick={()=>exec("justifyFull")}    title="Justifié"> <AlignJustify className="h-3 w-3"/></ToolBtn>
-
+        <ToolBtn onClick={()=>exec("justifyLeft")}   title="Gauche">   <AlignLeft    className="h-3 w-3"/></ToolBtn>
+        <ToolBtn onClick={()=>exec("justifyCenter")} title="Centré">   <AlignCenter  className="h-3 w-3"/></ToolBtn>
+        <ToolBtn onClick={()=>exec("justifyRight")}  title="Droite">   <AlignRight   className="h-3 w-3"/></ToolBtn>
+        <ToolBtn onClick={()=>exec("justifyFull")}   title="Justifié"> <AlignJustify className="h-3 w-3"/></ToolBtn>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
-
         <ToolBtn onClick={()=>exec("insertUnorderedList")} title="Liste à puces">   <List        className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("insertOrderedList")}   title="Liste numérotée"> <ListOrdered className="h-3 w-3"/></ToolBtn>
-
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
-
         <div className="relative">
-          <ToolBtn onClick={()=>setShowColors(s=>!s)} title="Couleur du texte">
-            <Type className="h-3 w-3"/>
-          </ToolBtn>
+          <ToolBtn onClick={()=>setShowColors(s=>!s)} title="Couleur du texte"><Type className="h-3 w-3"/></ToolBtn>
           {showColors && (
             <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
               {COLORS.map(c=>(
@@ -226,23 +223,14 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
             </div>
           )}
         </div>
-
-        <ToolBtn onClick={()=>exec("hiliteColor","#fef08a")} title="Surligner">
-          <Highlighter className="h-3 w-3"/>
-        </ToolBtn>
-
+        <ToolBtn onClick={()=>exec("hiliteColor","#fef08a")} title="Surligner"><Highlighter className="h-3 w-3"/></ToolBtn>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
-
         <ToolBtn onClick={()=>exec("removeFormat")} title="Effacer la mise en forme">
           <span className="text-[9px] font-bold">Aa</span>
         </ToolBtn>
       </div>
-
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={handleChange}
+      <div ref={editorRef} contentEditable suppressContentEditableWarning
+        onInput={handleInput}
         data-placeholder={placeholder}
         style={{ minHeight: `${rows * 1.6}rem` }}
         className="w-full bg-transparent text-sm text-foreground outline-none leading-relaxed
@@ -256,39 +244,10 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
 function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
   value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
 }) {
-  const editorRef  = useRef<HTMLDivElement>(null);
-  const savedRange = useRef<Range | null>(null);
-  const isUpdating = useRef(false);
+  const { editorRef, saveSelection, exec, handleInput, initContent } = useRichEditor(onChange);
   const [showColors, setShowColors] = useState(false);
 
-  useEffect(() => {
-    const el = editorRef.current;
-    if (!el || isUpdating.current) return;
-    if (el.innerHTML !== value) el.innerHTML = value;
-  }, [value]);
-
-  const saveSelection = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
-  };
-
-  const exec = (cmd: string, val?: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-    if (savedRange.current) {
-      const sel = window.getSelection();
-      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
-    }
-    document.execCommand(cmd, false, val);
-    handleChange();
-  };
-
-  const handleChange = () => {
-    isUpdating.current = true;
-    onChange(editorRef.current?.innerHTML ?? "");
-    setTimeout(() => { isUpdating.current = false; }, 0);
-  };
+  useEffect(() => { initContent(value); }, []); // eslint-disable-line
 
   const COLORS = ["#1a1a2e","#4f46e5","#10b981","#f59e0b","#ef4444","#64748b"];
 
@@ -316,9 +275,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
         <Btn onClick={()=>exec("insertOrderedList")}   title="Numéros"> <ListOrdered className="h-3 w-3"/></Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
         <div className="relative">
-          <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur">
-            <Type className="h-3 w-3"/>
-          </Btn>
+          <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur"><Type className="h-3 w-3"/></Btn>
           {showColors && (
             <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1">
               {COLORS.map(c=>(
@@ -332,7 +289,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
         </div>
       </div>
       <div ref={editorRef} contentEditable suppressContentEditableWarning
-        onInput={handleChange} data-placeholder={placeholder}
+        onInput={handleInput} data-placeholder={placeholder}
         style={{ minHeight:`${rows*1.5}rem` }}
         className="w-full bg-transparent text-sm text-foreground outline-none leading-relaxed
                    empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50" />
@@ -379,21 +336,85 @@ function PdfPage({ pageNum, totalPages, isFirst, invoiceNumber, design, sellerIn
 
 // ─── APERÇU PDF COMPLET ───────────────────────────────────────────────────────
 
+// Hauteur estimée de la page 1 (en px à 96dpi, A4 = ~1122px)
+// Header + client + titre + en-tête tableau + totaux + blocs ≈ 520px
+// Chaque ligne de tableau ≈ 36px
+// Footer ≈ 30px
+// → Lignes max sur page 1 ≈ (1122 - 520 - 30) / 36 ≈ 16
+// → Lignes max sur pages suivantes ≈ (1122 - 70 - 30) / 36 ≈ 28
+const ROWS_PAGE_1  = 15;
+const ROWS_PER_PAGE = 26;
+
 function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issueDate, dueDate, sellerInfo, buyerInfo }: {
   title:string; lines:InvoiceLine[]; columns:Column[]; blocks:Block[];
   design:DesignSettings; invoiceNumber:string; issueDate:string; dueDate:string;
   sellerInfo:string; buyerInfo:string;
 }) {
   const { totalHT, totalTVA, totalTTC } = computeTotals(lines);
-  const visibleCols   = columns.filter(c => c.visible);
-  const mainBlocks    = blocks.filter(b => b.visible && b.type !== "lines" && b.type !== "extra_page" && b.type !== "footer" && b.type !== "custom");
-  const extraPages    = blocks.filter(b => b.visible && b.type === "extra_page");
-  const customBlocks  = blocks.filter(b => b.visible && b.type === "custom");
-  const footerBlock   = blocks.find(b => b.type === "footer" && b.visible);
-  const totalPages    = 1 + extraPages.length;
+  const visibleCols  = columns.filter(c => c.visible);
+  const mainBlocks   = blocks.filter(b => b.visible && b.type !== "lines" && b.type !== "extra_page" && b.type !== "footer" && b.type !== "custom");
+  const extraPages   = blocks.filter(b => b.visible && b.type === "extra_page");
+  const customBlocks = blocks.filter(b => b.visible && b.type === "custom");
+  const footerBlock  = blocks.find(b => b.type === "footer" && b.visible);
+
+  // ── Découper les lignes en pages ────────────────────────────────────────────
+  const linePages: InvoiceLine[][] = [];
+  if (lines.length <= ROWS_PAGE_1) {
+    linePages.push(lines);
+  } else {
+    linePages.push(lines.slice(0, ROWS_PAGE_1));
+    let offset = ROWS_PAGE_1;
+    while (offset < lines.length) {
+      linePages.push(lines.slice(offset, offset + ROWS_PER_PAGE));
+      offset += ROWS_PER_PAGE;
+    }
+  }
+
+  const tableContinuationPages = linePages.length - 1; // pages 2..N pour le tableau
+  const totalPages = linePages.length + extraPages.length;
+
+  // ── Composant tableau réutilisable ──────────────────────────────────────────
+  const TableRows = ({ rows }: { rows: InvoiceLine[] }) => (
+    <tbody>
+      {rows.map((line, i) => (
+        <tr key={line.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
+          {visibleCols.map(col => (
+            <td key={col.id} className="py-2 px-2 text-gray-700 border-b border-gray-100" style={{ fontSize: "11px" }}>
+              {col.id === "tvaAmount" && col.computed ? (
+                <span>{col.computed(line)} € <span className="text-[9px] text-gray-400">({line.tva}%)</span></span>
+              ) : col.computed ? `${col.computed(line)} €` : col.type === "text" ? (
+                <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: String(line[col.id] ?? "") }} />
+              ) : (
+                <>
+                  {String(line[col.id] ?? "")}
+                  {col.type === "percent" && line[col.id] ? "%" : ""}
+                  {col.type === "currency" && line[col.id] ? " €" : ""}
+                </>
+              )}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  );
+
+  const TableHead = () => (
+    <thead>
+      <tr style={{ backgroundColor: design.primaryColor + "15" }}>
+        {visibleCols.map(col => (
+          <th key={col.id} className="py-2 px-2 text-left text-[9px] uppercase tracking-wider font-semibold"
+            style={{ color: design.primaryColor, width: `${col.width * 8}%` }}>
+            {col.label}
+            {col.id === "tvaAmount" && <span className="text-[8px] opacity-60 block normal-case">(taux × base HT)</span>}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
 
   return (
     <div className="space-y-0" id="pdf-preview-root">
+
       {/* ── PAGE 1 ── */}
       <PdfPage pageNum={1} totalPages={totalPages} isFirst invoiceNumber={invoiceNumber}
         design={design} sellerInfo={sellerInfo} footerContent={footerBlock?.content}>
@@ -412,20 +433,20 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
             <div className="text-right">
               <div className="text-2xl font-bold mb-1" style={{ color: design.primaryColor }}>FACTURE</div>
               <div className="text-gray-500 text-[10px] space-y-0.5">
-                <div><span className="font-semibold">N° </span>{invoiceNumber||"2025-0001"}</div>
-                <div><span className="font-semibold">Date : </span>{issueDate||"—"}</div>
-                <div><span className="font-semibold">Échéance : </span>{dueDate||"—"}</div>
+                <div><span className="font-semibold">N° </span>{invoiceNumber || "2025-0001"}</div>
+                <div><span className="font-semibold">Date : </span>{issueDate || "—"}</div>
+                <div><span className="font-semibold">Échéance : </span>{dueDate || "—"}</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Client à droite */}
+        {/* Client */}
         <div className="px-6 py-4 border-b border-gray-100 flex justify-end">
           <div className="w-64 rounded-lg p-3" style={{ backgroundColor: design.headerBg }}>
             <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: design.primaryColor }}>Facturé à</div>
             <div className="text-[11px] font-semibold text-gray-800 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: buyerInfo || "Nom du client<br/>Adresse<br/>SIRET : " }} />
+              dangerouslySetInnerHTML={{ __html: buyerInfo || "Nom du client<br/>Adresse<br/>SIRET : " }} />
           </div>
         </div>
 
@@ -436,73 +457,45 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
           </div>
         )}
 
-        {/* Tableau */}
+        {/* Tableau page 1 */}
         <div className="px-6 py-4">
           <table className="w-full border-collapse">
-            <thead>
-              <tr style={{ backgroundColor: design.primaryColor+"15" }}>
-                {visibleCols.map(col => (
-                  <th key={col.id} className="py-2 px-2 text-left text-[9px] uppercase tracking-wider font-semibold"
-                    style={{ color: design.primaryColor, width:`${col.width*8}%` }}>
-                    {col.label}
-                    {col.id==="tvaAmount" && <span className="text-[8px] opacity-60 block normal-case">(taux × base HT)</span>}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((line,i) => (
-                <tr key={line.id} className={i%2===0?"bg-white":"bg-gray-50/50"}>
-                  {visibleCols.map(col => (
-                    <td key={col.id} className="py-2 px-2 text-gray-700 border-b border-gray-100">
-                      {col.id==="tvaAmount"&&col.computed ? (
-                        <span>{col.computed(line)} € <span className="text-[9px] text-gray-400">({line.tva}%)</span></span>
-                      ) : col.computed ? `${col.computed(line)} €` : col.type==="text" ? (
-                        <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: String(line[col.id]??"") }} />
-                      ) : (
-                        <>
-                          {String(line[col.id]??"")}
-                          {col.type==="percent"&&line[col.id]?"%":""}
-                          {col.type==="currency"&&line[col.id]?" €":""}
-                        </>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+            <TableHead />
+            <TableRows rows={linePages[0]} />
           </table>
+          {linePages.length > 1 && (
+            <div className="text-[9px] text-gray-400 italic mt-2 text-right">Suite page suivante →</div>
+          )}
         </div>
 
-        {/* Totaux */}
-        <div className="px-6 pb-4 flex justify-end">
-          <div className="w-56 space-y-1">
-            {[
-              { label:"Total HT",  val:totalHT.toFixed(2) },
-              { label:"TVA",       val:totalTVA.toFixed(2) },
-            ].map(r => (
-              <div key={r.label} className="flex justify-between text-gray-600 py-1 border-b border-gray-100">
-                <span>{r.label}</span><span className="font-medium">{r.val} €</span>
+        {/* Totaux seulement si tout le tableau tient sur la page 1 */}
+        {linePages.length === 1 && (
+          <div className="px-6 pb-4 flex justify-end">
+            <div className="w-56 space-y-1">
+              {[{ label:"Total HT", val:totalHT.toFixed(2) }, { label:"TVA", val:totalTVA.toFixed(2) }].map(r => (
+                <div key={r.label} className="flex justify-between text-gray-600 py-1 border-b border-gray-100">
+                  <span>{r.label}</span><span className="font-medium">{r.val} €</span>
+                </div>
+              ))}
+              <div className="flex justify-between py-2 px-2 rounded-lg font-bold text-white text-sm mt-1"
+                style={{ backgroundColor: design.primaryColor }}>
+                <span>Total TTC</span><span>{totalTTC.toFixed(2)} €</span>
               </div>
-            ))}
-            <div className="flex justify-between py-2 px-2 rounded-lg font-bold text-white text-sm mt-1"
-              style={{ backgroundColor: design.primaryColor }}>
-              <span>Total TTC</span><span>{totalTTC.toFixed(2)} €</span>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Blocs principaux */}
-        {mainBlocks.map(block => (
+        {/* Blocs principaux seulement si tout le tableau tient sur page 1 */}
+        {linePages.length === 1 && mainBlocks.map(block => (
           <div key={block.id} className="px-6 py-3 border-t border-gray-100">
             <div className="text-[9px] uppercase tracking-widest mb-1 font-semibold" style={{ color: design.primaryColor }}>
               {block.label}
             </div>
-            {block.type==="signature" ? (
+            {block.type === "signature" ? (
               <div className="h-16 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-300 text-[10px]">
                 Signature électronique
               </div>
-            ) : block.type==="stamp" ? (
+            ) : block.type === "stamp" ? (
               <div className="h-16 w-16 border-2 border-dashed border-gray-200 rounded-full flex items-center justify-center text-gray-300 text-[9px] text-center">
                 Tampon
               </div>
@@ -512,8 +505,7 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
           </div>
         ))}
 
-        {/* Blocs personnalisés */}
-        {customBlocks.map(block => (
+        {linePages.length === 1 && customBlocks.map(block => (
           <div key={block.id} className="px-6 py-3 border-t border-gray-100">
             <div className="text-[9px] uppercase tracking-widest mb-1 font-semibold" style={{ color: design.primaryColor }}>
               {block.label}
@@ -523,11 +515,72 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
         ))}
       </PdfPage>
 
-      {/* ── PAGES SUPPLÉMENTAIRES ── */}
+      {/* ── PAGES CONTINUATION TABLEAU (2..N) ── */}
+      {linePages.slice(1).map((pageLines, idx) => {
+        const pageNum = idx + 2;
+        const isLastTablePage = idx === linePages.length - 2;
+        return (
+          <PdfPage key={`table-page-${pageNum}`} pageNum={pageNum} totalPages={totalPages} isFirst={false}
+            invoiceNumber={invoiceNumber} design={design} sellerInfo={sellerInfo} footerContent={footerBlock?.content}>
+            <div className="px-6 py-4">
+              <div className="text-[9px] uppercase tracking-widest mb-2 font-semibold" style={{ color: design.primaryColor }}>
+                Suite des lignes
+              </div>
+              <table className="w-full border-collapse">
+                <TableHead />
+                <TableRows rows={pageLines} />
+              </table>
+              {!isLastTablePage && (
+                <div className="text-[9px] text-gray-400 italic mt-2 text-right">Suite page suivante →</div>
+              )}
+            </div>
+
+            {/* Totaux et blocs sur la dernière page du tableau */}
+            {isLastTablePage && (
+              <>
+                <div className="px-6 pb-4 flex justify-end">
+                  <div className="w-56 space-y-1">
+                    {[{ label:"Total HT", val:totalHT.toFixed(2) }, { label:"TVA", val:totalTVA.toFixed(2) }].map(r => (
+                      <div key={r.label} className="flex justify-between text-gray-600 py-1 border-b border-gray-100">
+                        <span>{r.label}</span><span className="font-medium">{r.val} €</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-2 px-2 rounded-lg font-bold text-white text-sm mt-1"
+                      style={{ backgroundColor: design.primaryColor }}>
+                      <span>Total TTC</span><span>{totalTTC.toFixed(2)} €</span>
+                    </div>
+                  </div>
+                </div>
+                {mainBlocks.map(block => (
+                  <div key={block.id} className="px-6 py-3 border-t border-gray-100">
+                    <div className="text-[9px] uppercase tracking-widest mb-1 font-semibold" style={{ color: design.primaryColor }}>
+                      {block.label}
+                    </div>
+                    {block.type === "signature" ? (
+                      <div className="h-16 border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-300 text-[10px]">Signature électronique</div>
+                    ) : block.type === "stamp" ? (
+                      <div className="h-16 w-16 border-2 border-dashed border-gray-200 rounded-full flex items-center justify-center text-gray-300 text-[9px] text-center">Tampon</div>
+                    ) : (
+                      <div className="text-[10px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: block.content }} />
+                    )}
+                  </div>
+                ))}
+                {customBlocks.map(block => (
+                  <div key={block.id} className="px-6 py-3 border-t border-gray-100">
+                    <div className="text-[9px] uppercase tracking-widest mb-1 font-semibold" style={{ color: design.primaryColor }}>{block.label}</div>
+                    <div className="text-[10px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: block.content }} />
+                  </div>
+                ))}
+              </>
+            )}
+          </PdfPage>
+        );
+      })}
+
+      {/* ── PAGES SUPPLÉMENTAIRES manuelles ── */}
       {extraPages.map((page, idx) => (
-        <PdfPage key={page.id} pageNum={idx+2} totalPages={totalPages} isFirst={false}
-          invoiceNumber={invoiceNumber} design={design} sellerInfo={sellerInfo}
-          footerContent={footerBlock?.content}>
+        <PdfPage key={page.id} pageNum={linePages.length + idx + 1} totalPages={totalPages} isFirst={false}
+          invoiceNumber={invoiceNumber} design={design} sellerInfo={sellerInfo} footerContent={footerBlock?.content}>
           <div className="px-6 py-6">
             <div className="text-[11px] text-gray-700 leading-relaxed"
               dangerouslySetInnerHTML={{ __html: page.content || "Contenu de la page supplémentaire..." }} />
