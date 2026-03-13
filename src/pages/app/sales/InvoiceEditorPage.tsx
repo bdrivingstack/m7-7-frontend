@@ -147,17 +147,23 @@ function useRichEditor(onChange: (v: string) => void) {
 
   const applyFontSize = (size: string) => {
     restoreAndFocus();
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    if (!range.collapsed) {
-      try {
-        const span = document.createElement("span");
-        span.style.fontSize = size + "px";
-        range.surroundContents(span);
-      } catch { document.execCommand("fontSize", false, "3"); }
-    }
-    if (editorRef.current) onChange(editorRef.current.innerHTML);
+    // Utiliser execCommand fontSize avec un tableau de correspondance px→1-7
+    // puis remplacer les <font size="X"> par <span style="font-size:Xpx">
+    const sizeMap: Record<string, string> = {
+      "10":"1","11":"1","12":"2","13":"2","14":"3","16":"4","18":"5","20":"6","24":"7"
+    };
+    const level = sizeMap[size] || "3";
+    document.execCommand("fontSize", false, level);
+    // Remplacer les <font size="X"> générés par des spans avec font-size inline
+    const el = editorRef.current;
+    if (!el) return;
+    el.querySelectorAll(`font[size="${level}"]`).forEach(node => {
+      const span = document.createElement("span");
+      span.style.fontSize = size + "px";
+      span.innerHTML = (node as HTMLElement).innerHTML;
+      node.parentNode?.replaceChild(span, node);
+    });
+    onChange(el.innerHTML);
   };
 
   const handleInput = () => {
@@ -177,8 +183,10 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   // Init DOM content une seule fois au montage
   useEffect(() => { initContent(value); }, []); // eslint-disable-line
 
-  const COLORS = ["#1a1a2e","#4f46e5","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#64748b","#ffffff"];
+  const COLORS    = ["#1a1a2e","#4f46e5","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#64748b","#ffffff"];
+  const BG_COLORS = ["#fef08a","#bbf7d0","#bfdbfe","#fecaca","#e9d5ff","#fed7aa","#f1f5f9"];
   const SIZES  = ["10","11","12","13","14","16","18","20","24"];
+  const [showBgColors, setShowBgColors] = useState(false);
 
   const ToolBtn = ({ onClick, title, children }: any) => (
     <button type="button"
@@ -224,6 +232,23 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
           )}
         </div>
         <ToolBtn onClick={()=>exec("hiliteColor","#fef08a")} title="Surligner"><Highlighter className="h-3 w-3"/></ToolBtn>
+        <div className="relative">
+          <ToolBtn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur de fond"><Highlighter className="h-3 w-3 opacity-60"/></ToolBtn>
+          {showBgColors && (
+            <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
+              {BG_COLORS.map(c=>(
+                <button key={c} type="button"
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
+                  style={{background:c}} />
+              ))}
+              <button type="button"
+                onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
+                className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform flex items-center justify-center text-[8px] text-muted-foreground"
+                title="Supprimer fond">✕</button>
+            </div>
+          )}
+        </div>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
         <ToolBtn onClick={()=>exec("removeFormat")} title="Effacer la mise en forme">
           <span className="text-[9px] font-bold">Aa</span>
@@ -246,10 +271,12 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
 }) {
   const { editorRef, saveSelection, exec, handleInput, initContent } = useRichEditor(onChange);
   const [showColors, setShowColors] = useState(false);
+  const [showBgColors, setShowBgColors] = useState(false);
 
   useEffect(() => { initContent(value); }, []); // eslint-disable-line
 
-  const COLORS = ["#1a1a2e","#4f46e5","#10b981","#f59e0b","#ef4444","#64748b"];
+  const COLORS    = ["#1a1a2e","#4f46e5","#10b981","#f59e0b","#ef4444","#64748b"];
+  const BG_COLORS = ["#fef08a","#bbf7d0","#bfdbfe","#fecaca","#e9d5ff","#fed7aa"];
 
   const Btn = ({ onClick, title, children }: any) => (
     <button type="button"
@@ -275,7 +302,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
         <Btn onClick={()=>exec("insertOrderedList")}   title="Numéros"> <ListOrdered className="h-3 w-3"/></Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
         <div className="relative">
-          <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur"><Type className="h-3 w-3"/></Btn>
+          <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur texte"><Type className="h-3 w-3"/></Btn>
           {showColors && (
             <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1">
               {COLORS.map(c=>(
@@ -284,6 +311,23 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
                   className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
                   style={{background:c}} />
               ))}
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <Btn onClick={()=>setShowBgColors(s=>!s)} title="Couleur fond"><Highlighter className="h-3 w-3"/></Btn>
+          {showBgColors && (
+            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1 flex-wrap w-24">
+              {BG_COLORS.map(c=>(
+                <button key={c} type="button"
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                  className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
+                  style={{background:c}} />
+              ))}
+              <button type="button"
+                onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
+                className="h-4 w-4 rounded border border-border/40 flex items-center justify-center text-[7px] text-muted-foreground"
+                title="Supprimer fond">✕</button>
             </div>
           )}
         </div>
@@ -653,16 +697,18 @@ function LinesFormattingToolbar() {
   const applyFontSize = (size: string) => {
     setFontSize(size);
     restoreSelection();
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    if (!range.collapsed) {
-      try {
-        const span = document.createElement("span");
-        span.style.fontSize = size + "px";
-        range.surroundContents(span);
-      } catch { document.execCommand("fontSize", false, "3"); }
-    }
+    const sizeMap: Record<string, string> = {
+      "10":"1","11":"1","12":"2","13":"2","14":"3","16":"4","18":"5","20":"6","24":"7"
+    };
+    const level = sizeMap[size] || "3";
+    document.execCommand("fontSize", false, level);
+    // Remplacer <font size="X"> par <span style="font-size:Xpx">
+    document.querySelectorAll(`[contenteditable] font[size="${level}"]`).forEach(node => {
+      const span = document.createElement("span");
+      span.style.fontSize = size + "px";
+      span.innerHTML = (node as HTMLElement).innerHTML;
+      node.parentNode?.replaceChild(span, node);
+    });
   };
 
   const COLORS    = ["#1a1a2e","#4f46e5","#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#64748b","#000000"];
@@ -949,23 +995,6 @@ export default function InvoiceEditorPage() {
                 {design.showBorder ? "Activée" : "Désactivée"}
               </button>
             </div>
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <Label className="text-xs">Logo</Label>
-              <Button variant="outline" size="sm" className="h-7 text-xs"
-                onClick={() => { const i=document.createElement("input"); i.type="file"; i.accept="image/*";
-                  i.onchange=e=>{ const f=(e.target as HTMLInputElement).files?.[0]; if(!f) return;
-                    const r=new FileReader(); r.onload=ev=>setDesign(d=>({...d,logoUrl:ev.target?.result as string})); r.readAsDataURL(f); };
-                  i.click(); }}>
-                <Image className="h-3 w-3 mr-1" />{design.logoUrl ? "Changer" : "Importer"}
-              </Button>
-              {design.logoUrl && (
-                <button type="button" onClick={() => setDesign(d=>({...d,logoUrl:null}))}
-                  className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                  <X className="h-3.5 w-3.5"/>
-                </button>
-              )}
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -976,8 +1005,8 @@ export default function InvoiceEditorPage() {
         {/* ════ ÉDITEUR GAUCHE ════════════════════════════════════════════════ */}
         <div className="w-1/2 overflow-y-auto border-r border-border/60 p-5 space-y-5">
 
-          {/* Infos facture */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Infos facture + Logo */}
+          <div className="grid grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">N° Facture</Label>
               <Input value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)} className="h-8 text-sm" />
@@ -989,6 +1018,24 @@ export default function InvoiceEditorPage() {
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Date échéance</Label>
               <Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="h-8 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Logo</Label>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-8 text-xs flex-1"
+                  onClick={() => { const i=document.createElement("input"); i.type="file"; i.accept="image/*";
+                    i.onchange=e=>{ const f=(e.target as HTMLInputElement).files?.[0]; if(!f) return;
+                      const r=new FileReader(); r.onload=ev=>setDesign(d=>({...d,logoUrl:ev.target?.result as string})); r.readAsDataURL(f); };
+                    i.click(); }}>
+                  <Image className="h-3 w-3 mr-1" />{design.logoUrl ? "Changer" : "Importer"}
+                </Button>
+                {design.logoUrl && (
+                  <button type="button" onClick={() => setDesign(d=>({...d,logoUrl:null}))}
+                    className="h-8 w-8 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-border/50">
+                    <X className="h-3.5 w-3.5"/>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1332,11 +1379,15 @@ export default function InvoiceEditorPage() {
             <div className="flex items-center gap-2">
               <Eye className="h-4 w-4 text-muted-foreground"/>
               <span className="text-sm font-medium">Aperçu temps réel</span>
-              {blocks.filter(b=>b.type==="extra_page").length>0&&(
-                <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                  {1+blocks.filter(b=>b.type==="extra_page").length} pages
-                </span>
-              )}
+              {(() => {
+                const autoPages = lines.length > ROWS_PAGE_1 ? Math.ceil((lines.length - ROWS_PAGE_1) / ROWS_PER_PAGE) : 0;
+                const totalPgs = 1 + autoPages + blocks.filter(b=>b.type==="extra_page").length;
+                return totalPgs > 1 ? (
+                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    {totalPgs} pages
+                  </span>
+                ) : null;
+              })()}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
