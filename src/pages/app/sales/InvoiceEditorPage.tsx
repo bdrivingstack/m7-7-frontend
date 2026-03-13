@@ -108,21 +108,59 @@ function computeTotals(lines: InvoiceLine[]) {
 function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
 }) {
-  const editorRef = useRef<HTMLDivElement>(null);
+  const editorRef  = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
+  const isUpdating = useRef(false);
   const [showColors, setShowColors] = useState(false);
   const [fontSize,   setFontSize]   = useState("13");
-  const isUpdating = useRef(false);
 
-  // Sync valeur externe → DOM (seulement si différente pour éviter boucles)
   useEffect(() => {
     const el = editorRef.current;
     if (!el || isUpdating.current) return;
     if (el.innerHTML !== value) el.innerHTML = value;
   }, [value]);
 
+  // Sauvegarde la sélection courante AVANT que le clic sur un bouton la fasse perdre
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
+  };
+
+  // Restaure la sélection dans l'éditeur puis exécute la commande
   const exec = (cmd: string, val?: string) => {
-    editorRef.current?.focus();
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (savedRange.current) {
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
+    }
     document.execCommand(cmd, false, val);
+    handleChange();
+  };
+
+  // Applique une taille de police via un span, sans insertHTML (qui insère du texte brut si pas de sélection)
+  const applyFontSize = (size: string) => {
+    setFontSize(size);
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (savedRange.current) {
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!range.collapsed) {
+      try {
+        const span = document.createElement("span");
+        span.style.fontSize = size + "px";
+        range.surroundContents(span);
+      } catch {
+        document.execCommand("fontSize", false, "3");
+      }
+    }
     handleChange();
   };
 
@@ -136,7 +174,9 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   const SIZES  = ["10","11","12","13","14","16","18","20","24"];
 
   const ToolBtn = ({ onClick, title, children, active=false }: any) => (
-    <button type="button" onMouseDown={e=>{e.preventDefault();onClick();}} title={title}
+    <button type="button"
+      onMouseDown={e => { e.preventDefault(); saveSelection(); onClick(); }}
+      title={title}
       className={`h-6 w-6 rounded flex items-center justify-center transition-colors text-muted-foreground hover:text-foreground hover:bg-muted ${active?"bg-muted text-foreground":""}`}>
       {children}
     </button>
@@ -144,27 +184,21 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
 
   return (
     <div className="w-full">
-      {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-0.5 mb-1.5 pb-1.5 border-b border-border/40">
-        {/* Taille */}
-        <select value={fontSize} onChange={e=>{setFontSize(e.target.value);exec("fontSize","3");
-          // fontSize execCommand est limité, on utilise span
-          editorRef.current?.focus();
-          document.execCommand("insertHTML",false,`<span style="font-size:${e.target.value}px">\u200B</span>`);
-          handleChange();
-        }}
+        {/* Taille — onMouseDown pour sauvegarder la sélection AVANT que le select prenne le focus */}
+        <select value={fontSize}
+          onMouseDown={() => saveSelection()}
+          onChange={e => applyFontSize(e.target.value)}
           className="h-6 text-[10px] bg-background border border-border rounded px-1 mr-1 text-muted-foreground">
           {SIZES.map(s=><option key={s} value={s}>{s}px</option>)}
         </select>
 
-        {/* Gras / Italique / Souligné */}
         <ToolBtn onClick={()=>exec("bold")}      title="Gras (Ctrl+B)">      <Bold      className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("italic")}    title="Italique (Ctrl+I)">  <Italic    className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("underline")} title="Souligné (Ctrl+U)">  <Underline className="h-3 w-3"/></ToolBtn>
 
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
 
-        {/* Alignement */}
         <ToolBtn onClick={()=>exec("justifyLeft")}    title="Gauche">   <AlignLeft    className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("justifyCenter")}  title="Centré">   <AlignCenter  className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("justifyRight")}   title="Droite">   <AlignRight   className="h-3 w-3"/></ToolBtn>
@@ -172,13 +206,11 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
 
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
 
-        {/* Listes */}
         <ToolBtn onClick={()=>exec("insertUnorderedList")} title="Liste à puces">   <List        className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("insertOrderedList")}   title="Liste numérotée"> <ListOrdered className="h-3 w-3"/></ToolBtn>
 
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
 
-        {/* Couleur texte */}
         <div className="relative">
           <ToolBtn onClick={()=>setShowColors(s=>!s)} title="Couleur du texte">
             <Type className="h-3 w-3"/>
@@ -187,7 +219,7 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
             <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
               {COLORS.map(c=>(
                 <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault();exec("foreColor",c);setShowColors(false);}}
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
                   className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
                   style={{background:c}} />
               ))}
@@ -195,20 +227,17 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
           )}
         </div>
 
-        {/* Surlignage */}
         <ToolBtn onClick={()=>exec("hiliteColor","#fef08a")} title="Surligner">
           <Highlighter className="h-3 w-3"/>
         </ToolBtn>
 
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
 
-        {/* Effacer */}
         <ToolBtn onClick={()=>exec("removeFormat")} title="Effacer la mise en forme">
           <span className="text-[9px] font-bold">Aa</span>
         </ToolBtn>
       </div>
 
-      {/* ── Zone de texte ── */}
       <div
         ref={editorRef}
         contentEditable
@@ -228,6 +257,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
   value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
 }) {
   const editorRef  = useRef<HTMLDivElement>(null);
+  const savedRange = useRef<Range | null>(null);
   const isUpdating = useRef(false);
   const [showColors, setShowColors] = useState(false);
 
@@ -237,8 +267,19 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
     if (el.innerHTML !== value) el.innerHTML = value;
   }, [value]);
 
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRange.current = sel.getRangeAt(0).cloneRange();
+  };
+
   const exec = (cmd: string, val?: string) => {
-    editorRef.current?.focus();
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (savedRange.current) {
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
+    }
     document.execCommand(cmd, false, val);
     handleChange();
   };
@@ -252,7 +293,9 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
   const COLORS = ["#1a1a2e","#4f46e5","#10b981","#f59e0b","#ef4444","#64748b"];
 
   const Btn = ({ onClick, title, children }: any) => (
-    <button type="button" onMouseDown={e=>{e.preventDefault();onClick();}} title={title}
+    <button type="button"
+      onMouseDown={e => { e.preventDefault(); saveSelection(); onClick(); }}
+      title={title}
       className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
       {children}
     </button>
@@ -269,8 +312,8 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
         <Btn onClick={()=>exec("justifyCenter")} title="Centré">  <AlignCenter className="h-3 w-3"/></Btn>
         <Btn onClick={()=>exec("justifyRight")}  title="Droite">  <AlignRight  className="h-3 w-3"/></Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
-        <Btn onClick={()=>exec("insertUnorderedList")} title="Puces">     <List        className="h-3 w-3"/></Btn>
-        <Btn onClick={()=>exec("insertOrderedList")}   title="Numéros">   <ListOrdered className="h-3 w-3"/></Btn>
+        <Btn onClick={()=>exec("insertUnorderedList")} title="Puces">   <List        className="h-3 w-3"/></Btn>
+        <Btn onClick={()=>exec("insertOrderedList")}   title="Numéros"> <ListOrdered className="h-3 w-3"/></Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
         <div className="relative">
           <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur">
@@ -280,7 +323,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
             <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1">
               {COLORS.map(c=>(
                 <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault();exec("foreColor",c);setShowColors(false);}}
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
                   className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
                   style={{background:c}} />
               ))}
