@@ -1,73 +1,62 @@
-# Welcome to your Lovable project
+# M7Sept — Gestion financière simple et intelligente
 
-## Project info
+Plateforme SaaS de gestion financière pour auto-entrepreneurs, micro-entreprises et PME françaises.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Stack technique
 
-## How can I edit this code?
+- **Frontend** : React 18 + TypeScript + Vite + TailwindCSS + shadcn/ui
+- **Backend** : Node.js + Express + Prisma + PostgreSQL
+- **Déploiement** : Vercel (frontend) — Railway (backend, à venir)
 
-There are several ways of editing your application.
+## Développement local
 
-**Use Lovable**
+### Frontend
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+cd m7-7-frontend
+npm install
 npm run dev
+# → http://127.0.0.1:8080
 ```
 
-**Edit a file directly in GitHub**
+### Backend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+cd m7-7-backend
+npm install
+npm run dev
+# → http://localhost:4000
+```
 
-**Use GitHub Codespaces**
+### Base de données
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npx prisma db push
+npx prisma studio  # → http://localhost:5555
+```
 
-## What technologies are used for this project?
+## Variables d'environnement backend
 
-This project is built with:
+```env
+DATABASE_URL=postgresql://postgres:PASSWORD@localhost:5432/m77
+JWT_SECRET=...
+ENCRYPTION_KEY=...
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+FRONTEND_URL=http://127.0.0.1:8080
+NODE_ENV=development
+PORT=4000
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Fonctionnalités
 
-## How can I deploy this project?
+- Facturation, devis, avoirs, récurrents
+- Comptabilité, TVA, cotisations sociales
+- Rapprochement bancaire, paiements
+- Facture électronique Factur-X conforme réforme 2026
+- Assistant IA financier
+- Portail client
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Licence
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Propriétaire — © M7Sept. Tous droits réservés.
