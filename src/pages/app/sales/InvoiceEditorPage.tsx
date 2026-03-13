@@ -364,7 +364,7 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
                 : <div className="h-10 w-24 rounded-lg mb-2 flex items-center justify-center text-white text-xs font-bold"
                     style={{ backgroundColor: design.primaryColor }}>LOGO</div>
               }
-              <pre className="text-[10px] text-gray-600 whitespace-pre-wrap font-sans">{sellerInfo}</pre>
+              <div className="text-[10px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: sellerInfo || "" }} />
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold mb-1" style={{ color: design.primaryColor }}>FACTURE</div>
@@ -381,16 +381,15 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
         <div className="px-6 py-4 border-b border-gray-100 flex justify-end">
           <div className="w-64 rounded-lg p-3" style={{ backgroundColor: design.headerBg }}>
             <div className="text-[9px] uppercase tracking-widest mb-1" style={{ color: design.primaryColor }}>Facturé à</div>
-            <pre className="text-[11px] font-semibold text-gray-800 whitespace-pre-wrap font-sans">
-              {buyerInfo||"Nom du client\nAdresse\nSIRET : "}
-            </pre>
+            <div className="text-[11px] font-semibold text-gray-800 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: buyerInfo || "Nom du client<br/>Adresse<br/>SIRET : " }} />
           </div>
         </div>
 
         {/* Titre */}
         {title && (
           <div className="px-6 py-3 border-b border-gray-100">
-            <p className="font-semibold text-gray-700">{title}</p>
+            <div className="font-semibold text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: title }} />
           </div>
         )}
 
@@ -415,7 +414,9 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
                     <td key={col.id} className="py-2 px-2 text-gray-700 border-b border-gray-100">
                       {col.id==="tvaAmount"&&col.computed ? (
                         <span>{col.computed(line)} € <span className="text-[9px] text-gray-400">({line.tva}%)</span></span>
-                      ) : col.computed ? `${col.computed(line)} €` : (
+                      ) : col.computed ? `${col.computed(line)} €` : col.type==="text" ? (
+                        <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: String(line[col.id]??"") }} />
+                      ) : (
                         <>
                           {String(line[col.id]??"")}
                           {col.type==="percent"&&line[col.id]?"%":""}
@@ -463,7 +464,7 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
                 Tampon
               </div>
             ) : (
-              <pre className="text-[10px] text-gray-600 whitespace-pre-wrap font-sans">{block.content}</pre>
+              <div className="text-[10px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: block.content }} />
             )}
           </div>
         ))}
@@ -474,7 +475,7 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
             <div className="text-[9px] uppercase tracking-widest mb-1 font-semibold" style={{ color: design.primaryColor }}>
               {block.label}
             </div>
-            <pre className="text-[10px] text-gray-600 whitespace-pre-wrap font-sans">{block.content}</pre>
+            <div className="text-[10px] text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: block.content }} />
           </div>
         ))}
       </PdfPage>
@@ -485,9 +486,8 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
           invoiceNumber={invoiceNumber} design={design} sellerInfo={sellerInfo}
           footerContent={footerBlock?.content}>
           <div className="px-6 py-6">
-            <pre className="text-[11px] text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-              {page.content || "Contenu de la page supplémentaire..."}
-            </pre>
+            <div className="text-[11px] text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: page.content || "Contenu de la page supplémentaire..." }} />
           </div>
         </PdfPage>
       ))}
