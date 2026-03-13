@@ -214,6 +214,8 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   const BG_COLORS = ["#fef08a","#bbf7d0","#bfdbfe","#fecaca","#e9d5ff","#fed7aa","#f1f5f9"];
   const SIZES  = ["10","11","12","13","14","16","18","20","24"];
   const [showBgColors, setShowBgColors] = useState(false);
+  const [activeTextColor, setActiveTextColor] = useState("#1a1a2e");
+  const [activeBgColor,   setActiveBgColor]   = useState("#fef08a");
 
   const ToolBtn = ({ onClick, title, children }: any) => (
     <button type="button"
@@ -245,52 +247,59 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
         <ToolBtn onClick={()=>exec("insertUnorderedList")} title="Liste à puces">   <List        className="h-3 w-3"/></ToolBtn>
         <ToolBtn onClick={()=>exec("insertOrderedList")}   title="Liste numérotée"> <ListOrdered className="h-3 w-3"/></ToolBtn>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
-        <div className="relative">
-          <ToolBtn onClick={()=>setShowColors(s=>!s)} title="Couleur du texte"><Type className="h-3 w-3"/></ToolBtn>
+        {/* ── Couleur texte : swatch visible + palette dropdown ── */}
+        <div className="relative flex items-center gap-0.5">
+          {/* Swatch natif cliquable (comme "Couleur principale") */}
+          <label title="Couleur du texte" className="cursor-pointer flex items-center gap-0.5"
+            onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+            <Type className="h-3 w-3 text-muted-foreground"/>
+            <input type="color" value={activeTextColor}
+              onChange={e => { setActiveTextColor(e.target.value); saveSelection(); exec("foreColor", e.target.value); }}
+              className="h-5 w-6 rounded cursor-pointer border border-border p-0 bg-transparent" />
+          </label>
+          {/* Palette prédéfinie */}
+          <ToolBtn onClick={()=>{ setShowColors(s=>!s); setShowBgColors(false); }} title="Palette couleur texte">
+            <ChevronDown className="h-2.5 w-2.5"/>
+          </ToolBtn>
           {showColors && (
             <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:120}}>
-              <div className="flex flex-wrap gap-1 mb-1.5">
+              <div className="flex flex-wrap gap-1">
                 {COLORS.map(c=>(
                   <button key={c} type="button"
-                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); setActiveTextColor(c); exec("foreColor",c); setShowColors(false);}}
                     className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
                     style={{background:c}} />
                 ))}
               </div>
-              <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
-                <Type className="h-2.5 w-2.5"/>Autre :
-                <input type="color" defaultValue="#000000"
-                  onInput={e=>{saveSelection(); exec("foreColor",(e.target as HTMLInputElement).value);}}
-                  onChange={()=>setShowColors(false)}
-                  className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
-              </label>
             </div>
           )}
         </div>
-        <ToolBtn onClick={()=>exec("hiliteColor","#fef08a")} title="Surligner"><Highlighter className="h-3 w-3"/></ToolBtn>
-        <div className="relative">
-          <ToolBtn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur de fond"><Highlighter className="h-3 w-3 opacity-60"/></ToolBtn>
+        {/* ── Couleur fond : swatch visible + palette dropdown ── */}
+        <div className="relative flex items-center gap-0.5">
+          <label title="Couleur de fond" className="cursor-pointer flex items-center gap-0.5"
+            onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+            <Highlighter className="h-3 w-3 text-muted-foreground"/>
+            <input type="color" value={activeBgColor}
+              onChange={e => { setActiveBgColor(e.target.value); saveSelection(); exec("hiliteColor", e.target.value); }}
+              className="h-5 w-6 rounded cursor-pointer border border-border p-0 bg-transparent" />
+          </label>
+          <ToolBtn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Palette couleur fond">
+            <ChevronDown className="h-2.5 w-2.5"/>
+          </ToolBtn>
           {showBgColors && (
             <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:120}}>
-              <div className="flex flex-wrap gap-1 mb-1.5">
+              <div className="flex flex-wrap gap-1">
                 {BG_COLORS.map(c=>(
                   <button key={c} type="button"
-                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); setActiveBgColor(c); exec("hiliteColor",c); setShowBgColors(false);}}
                     className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
                     style={{background:c}} />
                 ))}
                 <button type="button"
                   onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
-                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform flex items-center justify-center text-[8px] text-muted-foreground bg-white"
+                  className="h-5 w-5 rounded border border-border/40 flex items-center justify-center text-[8px] text-muted-foreground bg-white"
                   title="Supprimer fond">✕</button>
               </div>
-              <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
-                <Highlighter className="h-2.5 w-2.5"/>Autre :
-                <input type="color" defaultValue="#fef08a"
-                  onInput={e=>{saveSelection(); exec("hiliteColor",(e.target as HTMLInputElement).value);}}
-                  onChange={()=>setShowBgColors(false)}
-                  className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
-              </label>
             </div>
           )}
         </div>
@@ -320,6 +329,8 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
   const { editorRef, saveSelection, exec, handleInput, initContent, toggleCase } = useRichEditor(onChange);
   const [showColors, setShowColors] = useState(false);
   const [showBgColors, setShowBgColors] = useState(false);
+  const [activeTextColor, setActiveTextColor] = useState("#1a1a2e");
+  const [activeBgColor,   setActiveBgColor]   = useState("#fef08a");
 
   useEffect(() => { initContent(value); }, []); // eslint-disable-line
 
@@ -356,36 +367,49 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
           <span className="text-[8px] font-bold">Aa</span>
         </Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
-        <div className="relative">
-          <Btn onClick={()=>{ setShowColors(s=>!s); setShowBgColors(false); }} title="Couleur texte"><Type className="h-3 w-3"/></Btn>
+        {/* ── Couleur texte ── */}
+        <div className="relative flex items-center gap-0.5">
+          <label title="Couleur du texte" className="cursor-pointer flex items-center gap-0.5"
+            onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+            <Type className="h-2.5 w-2.5 text-muted-foreground"/>
+            <input type="color" value={activeTextColor}
+              onChange={e => { setActiveTextColor(e.target.value); saveSelection(); exec("foreColor", e.target.value); }}
+              className="h-4 w-5 rounded cursor-pointer border border-border p-0 bg-transparent" />
+          </label>
+          <Btn onClick={()=>{ setShowColors(s=>!s); setShowBgColors(false); }} title="Palette texte">
+            <ChevronDown className="h-2 w-2"/>
+          </Btn>
           {showColors && (
-            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:110}}>
-              <div className="flex flex-wrap gap-1 mb-1">
+            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:100}}>
+              <div className="flex flex-wrap gap-1">
                 {COLORS.map(c=>(
                   <button key={c} type="button"
-                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); setActiveTextColor(c); exec("foreColor",c); setShowColors(false);}}
                     className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
                     style={{background:c}} />
                 ))}
               </div>
-              <label className="flex items-center gap-1 text-[8px] text-muted-foreground cursor-pointer">
-                <input type="color" defaultValue="#000000"
-                  onInput={e=>{saveSelection(); exec("foreColor",(e.target as HTMLInputElement).value);}}
-                  onChange={()=>setShowColors(false)}
-                  className="h-4 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
-                Autre
-              </label>
             </div>
           )}
         </div>
-        <div className="relative">
-          <Btn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur fond"><Highlighter className="h-3 w-3"/></Btn>
+        {/* ── Couleur fond ── */}
+        <div className="relative flex items-center gap-0.5">
+          <label title="Couleur de fond" className="cursor-pointer flex items-center gap-0.5"
+            onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+            <Highlighter className="h-2.5 w-2.5 text-muted-foreground"/>
+            <input type="color" value={activeBgColor}
+              onChange={e => { setActiveBgColor(e.target.value); saveSelection(); exec("hiliteColor", e.target.value); }}
+              className="h-4 w-5 rounded cursor-pointer border border-border p-0 bg-transparent" />
+          </label>
+          <Btn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Palette fond">
+            <ChevronDown className="h-2 w-2"/>
+          </Btn>
           {showBgColors && (
-            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:110}}>
-              <div className="flex flex-wrap gap-1 mb-1">
+            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:100}}>
+              <div className="flex flex-wrap gap-1">
                 {BG_COLORS.map(c=>(
                   <button key={c} type="button"
-                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); setActiveBgColor(c); exec("hiliteColor",c); setShowBgColors(false);}}
                     className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
                     style={{background:c}} />
                 ))}
@@ -394,13 +418,6 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
                   className="h-4 w-4 rounded border border-border/40 flex items-center justify-center text-[7px] text-muted-foreground bg-white"
                   title="Supprimer fond">✕</button>
               </div>
-              <label className="flex items-center gap-1 text-[8px] text-muted-foreground cursor-pointer">
-                <input type="color" defaultValue="#fef08a"
-                  onInput={e=>{saveSelection(); exec("hiliteColor",(e.target as HTMLInputElement).value);}}
-                  onChange={()=>setShowBgColors(false)}
-                  className="h-4 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
-                Autre
-              </label>
             </div>
           )}
         </div>
@@ -496,11 +513,19 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
       {rows.map((line, i) => (
         <tr key={line.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/50"}>
           {visibleCols.map(col => (
-            <td key={col.id} className="py-2 px-2 text-gray-700 border-b border-gray-100" style={{ fontSize: "11px" }}>
+            <td key={col.id}
+              className="py-2 px-1 text-gray-700 border-b border-gray-100"
+              style={{ fontSize: "11px", textAlign: col.type === "text" ? "left" : "center" }}>
               {col.id === "tvaAmount" && col.computed ? (
-                <span>{col.computed(line)} € <span className="text-[9px] text-gray-400">({line.tva}%)</span></span>
+                <span>{col.computed(line)} €<br/><span className="text-[9px] text-gray-400">({line.tva}%)</span></span>
               ) : col.computed ? `${col.computed(line)} €` : col.type === "text" ? (
-                <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: String(line[col.id] ?? "") }} />
+                <div>
+                  <div className="leading-relaxed" dangerouslySetInnerHTML={{ __html: String(line[col.id] ?? "") }} />
+                  {col.id === "designation" && line.description && String(line.description).trim() && (
+                    <div className="text-[9px] text-gray-400 mt-0.5 leading-relaxed italic"
+                      dangerouslySetInnerHTML={{ __html: String(line.description) }} />
+                  )}
+                </div>
               ) : (
                 <>
                   {String(line[col.id] ?? "")}
@@ -519,14 +544,21 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
     <thead>
       <tr style={{ backgroundColor: design.primaryColor + "15" }}>
         {visibleCols.map(col => (
-          <th key={col.id} className="py-2 px-2 text-left text-[9px] uppercase tracking-wider font-semibold"
-            style={{ color: design.primaryColor, width: `${col.width * 8}%` }}>
+          <th key={col.id}
+            className="py-2 px-1 text-center text-[8px] uppercase tracking-wide font-semibold leading-tight"
+            style={{ color: design.primaryColor, width: `${col.width * 8}%`, wordBreak: "break-word", whiteSpace: "normal" }}>
             {col.label}
-            {col.id === "tvaAmount" && <span className="text-[8px] opacity-60 block normal-case">(taux × base HT)</span>}
+            {col.id === "tvaAmount" && <span className="text-[7px] opacity-60 block normal-case">(taux × base HT)</span>}
           </th>
         ))}
       </tr>
     </thead>
+  );
+
+  const TableEl = ({ children }: { children: React.ReactNode }) => (
+    <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
+      {children}
+    </table>
   );
 
   return (
@@ -576,10 +608,10 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
 
         {/* Tableau page 1 */}
         <div className="px-6 py-4">
-          <table className="w-full border-collapse">
+          <TableEl>
             <TableHead />
             <TableRows rows={linePages[0]} />
-          </table>
+          </TableEl>
           {linePages.length > 1 && (
             <div className="text-[9px] text-gray-400 italic mt-2 text-right">Suite page suivante →</div>
           )}
@@ -643,10 +675,10 @@ function PdfPreview({ title, lines, columns, blocks, design, invoiceNumber, issu
               <div className="text-[9px] uppercase tracking-widest mb-2 font-semibold" style={{ color: design.primaryColor }}>
                 Suite des lignes
               </div>
-              <table className="w-full border-collapse">
+              <TableEl>
                 <TableHead />
                 <TableRows rows={pageLines} />
-              </table>
+              </TableEl>
               {!isLastTablePage && (
                 <div className="text-[9px] text-gray-400 italic mt-2 text-right">Suite page suivante →</div>
               )}
@@ -714,24 +746,23 @@ function SimpleEditable({ value, onChange, placeholder }: {
   value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isUpdating = useRef(false);
+  const initialized = useRef(false);
 
+  // Init le DOM UNE seule fois — ne jamais réécrire pendant l'édition
   useEffect(() => {
+    if (initialized.current) return;
     const el = ref.current;
-    if (!el || isUpdating.current) return;
-    if (el.innerHTML !== value) el.innerHTML = value;
-  }, [value]);
+    if (!el) return;
+    if (value) el.innerHTML = value;
+    initialized.current = true;
+  }, []); // eslint-disable-line
 
   return (
     <div
       ref={ref}
       contentEditable
       suppressContentEditableWarning
-      onInput={() => {
-        isUpdating.current = true;
-        onChange(ref.current?.innerHTML ?? "");
-        setTimeout(() => { isUpdating.current = false; }, 0);
-      }}
+      onInput={() => { onChange(ref.current?.innerHTML ?? ""); }}
       data-placeholder={placeholder}
       className="w-full min-h-[2rem] px-2 py-1 text-sm text-foreground outline-none leading-relaxed
                  border border-border/50 rounded-lg bg-muted/10
@@ -746,6 +777,8 @@ function LinesFormattingToolbar() {
   const [showColors,  setShowColors]  = useState(false);
   const [showBgColors,setShowBgColors]= useState(false);
   const [fontSize,    setFontSize]    = useState("13");
+  const [activeTextColor, setActiveTextColor] = useState("#1a1a2e");
+  const [activeBgColor,   setActiveBgColor]   = useState("#fef08a");
   // Sauvegarde de la sélection avant que le bouton prenne le focus
   const savedRange = useRef<Range | null>(null);
 
@@ -824,40 +857,49 @@ function LinesFormattingToolbar() {
       <Btn onClick={() => exec("indent")}  title="Retrait +"><span className="text-[10px] font-mono">→</span></Btn>
       <Btn onClick={() => exec("outdent")} title="Retrait -"><span className="text-[10px] font-mono">←</span></Btn>
       <Sep/>
-      <div className="relative">
-        <Btn onClick={() => { setShowColors(s=>!s); setShowBgColors(false); }} title="Couleur texte">
-          <Type className="h-3 w-3"/>
+      {/* ── Couleur texte : swatch visible + palette ── */}
+      <div className="relative flex items-center gap-0.5">
+        <label title="Couleur du texte" className="cursor-pointer flex items-center gap-0.5"
+          onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+          <Type className="h-3 w-3 text-muted-foreground flex-shrink-0"/>
+          <input type="color" value={activeTextColor}
+            onChange={e => { setActiveTextColor(e.target.value); restoreSelection(); exec("foreColor", e.target.value); }}
+            className="h-5 w-6 rounded cursor-pointer border border-border p-0 bg-transparent flex-shrink-0" />
+        </label>
+        <Btn onClick={() => { setShowColors(s=>!s); setShowBgColors(false); }} title="Palette couleur texte">
+          <ChevronDown className="h-2.5 w-2.5"/>
         </Btn>
         {showColors && (
           <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:130}}>
-            <div className="flex flex-wrap gap-1 mb-1.5">
+            <div className="flex flex-wrap gap-1">
               {COLORS.map(c => (
                 <button key={c} type="button"
-                  onMouseDown={e => { e.preventDefault(); exec("foreColor", c); setShowColors(false); }}
+                  onMouseDown={e => { e.preventDefault(); saveSelection(); setActiveTextColor(c); exec("foreColor", c); setShowColors(false); }}
                   className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
                   style={{ background: c }} />
               ))}
             </div>
-            <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
-              <Type className="h-2.5 w-2.5"/>Autre :
-              <input type="color" defaultValue="#000000"
-                onInput={e=>{exec("foreColor",(e.target as HTMLInputElement).value);}}
-                onChange={()=>setShowColors(false)}
-                className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
-            </label>
           </div>
         )}
       </div>
-      <div className="relative">
-        <Btn onClick={() => { setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur fond">
-          <Highlighter className="h-3 w-3"/>
+      {/* ── Couleur fond : swatch visible + palette ── */}
+      <div className="relative flex items-center gap-0.5">
+        <label title="Couleur de fond" className="cursor-pointer flex items-center gap-0.5"
+          onMouseDown={e => { e.stopPropagation(); saveSelection(); }}>
+          <Highlighter className="h-3 w-3 text-muted-foreground flex-shrink-0"/>
+          <input type="color" value={activeBgColor}
+            onChange={e => { setActiveBgColor(e.target.value); restoreSelection(); exec("hiliteColor", e.target.value); }}
+            className="h-5 w-6 rounded cursor-pointer border border-border p-0 bg-transparent flex-shrink-0" />
+        </label>
+        <Btn onClick={() => { setShowBgColors(s=>!s); setShowColors(false); }} title="Palette couleur fond">
+          <ChevronDown className="h-2.5 w-2.5"/>
         </Btn>
         {showBgColors && (
           <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:130}}>
-            <div className="flex flex-wrap gap-1 mb-1.5">
+            <div className="flex flex-wrap gap-1">
               {BG_COLORS.map(c => (
                 <button key={c} type="button"
-                  onMouseDown={e => { e.preventDefault(); exec("hiliteColor", c); setShowBgColors(false); }}
+                  onMouseDown={e => { e.preventDefault(); saveSelection(); setActiveBgColor(c); exec("hiliteColor", c); setShowBgColors(false); }}
                   className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
                   style={{ background: c }} />
               ))}
@@ -866,13 +908,6 @@ function LinesFormattingToolbar() {
                 className="h-5 w-5 rounded border border-border/40 flex items-center justify-center text-[8px] text-muted-foreground bg-white"
                 title="Supprimer fond">✕</button>
             </div>
-            <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
-              <Highlighter className="h-2.5 w-2.5"/>Autre :
-              <input type="color" defaultValue="#fef08a"
-                onInput={e=>{exec("hiliteColor",(e.target as HTMLInputElement).value);}}
-                onChange={()=>setShowBgColors(false)}
-                className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
-            </label>
           </div>
         )}
       </div>
