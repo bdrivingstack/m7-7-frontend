@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -170,13 +171,39 @@ function useRichEditor(onChange: (v: string) => void) {
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
-  return { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent };
+  const toggleCase = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    if (savedRange.current) {
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(savedRange.current); }
+    }
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const text = range.toString();
+    if (!text) return;
+    // Cycle: lowercase → UPPERCASE → Title Case → lowercase
+    let newText: string;
+    if (text === text.toLowerCase()) {
+      newText = text.toUpperCase();
+    } else if (text === text.toUpperCase()) {
+      newText = text.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+    } else {
+      newText = text.toLowerCase();
+    }
+    document.execCommand("insertText", false, newText);
+    onChange(el.innerHTML);
+  };
+
+  return { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent, toggleCase };
 }
 
 function RichTextArea({ value, onChange, placeholder, rows=3 }: {
   value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
 }) {
-  const { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent } = useRichEditor(onChange);
+  const { editorRef, saveSelection, exec, applyFontSize, handleInput, initContent, toggleCase } = useRichEditor(onChange);
   const [showColors, setShowColors] = useState(false);
   const [fontSize,   setFontSize]   = useState("13");
 
@@ -221,13 +248,22 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
         <div className="relative">
           <ToolBtn onClick={()=>setShowColors(s=>!s)} title="Couleur du texte"><Type className="h-3 w-3"/></ToolBtn>
           {showColors && (
-            <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
-              {COLORS.map(c=>(
-                <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
-                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
-                  style={{background:c}} />
-              ))}
+            <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:120}}>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {COLORS.map(c=>(
+                  <button key={c} type="button"
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
+                    className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
+                    style={{background:c}} />
+                ))}
+              </div>
+              <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
+                <Type className="h-2.5 w-2.5"/>Autre :
+                <input type="color" defaultValue="#000000"
+                  onInput={e=>{saveSelection(); exec("foreColor",(e.target as HTMLInputElement).value);}}
+                  onChange={()=>setShowColors(false)}
+                  className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+              </label>
             </div>
           )}
         </div>
@@ -235,22 +271,34 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
         <div className="relative">
           <ToolBtn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur de fond"><Highlighter className="h-3 w-3 opacity-60"/></ToolBtn>
           {showBgColors && (
-            <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
-              {BG_COLORS.map(c=>(
-                <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
-                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
-                  style={{background:c}} />
-              ))}
-              <button type="button"
-                onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
-                className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform flex items-center justify-center text-[8px] text-muted-foreground"
-                title="Supprimer fond">✕</button>
+            <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:120}}>
+              <div className="flex flex-wrap gap-1 mb-1.5">
+                {BG_COLORS.map(c=>(
+                  <button key={c} type="button"
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                    className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
+                    style={{background:c}} />
+                ))}
+                <button type="button"
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
+                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform flex items-center justify-center text-[8px] text-muted-foreground bg-white"
+                  title="Supprimer fond">✕</button>
+              </div>
+              <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
+                <Highlighter className="h-2.5 w-2.5"/>Autre :
+                <input type="color" defaultValue="#fef08a"
+                  onInput={e=>{saveSelection(); exec("hiliteColor",(e.target as HTMLInputElement).value);}}
+                  onChange={()=>setShowBgColors(false)}
+                  className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+              </label>
             </div>
           )}
         </div>
         <div className="w-px h-4 bg-border/60 mx-0.5"/>
         <ToolBtn onClick={()=>exec("removeFormat")} title="Effacer la mise en forme">
+          <span className="text-[9px] font-bold text-muted-foreground">Aa↺</span>
+        </ToolBtn>
+        <ToolBtn onClick={()=>toggleCase()} title="Changer la casse (minuscule → MAJUSCULE → Titre)">
           <span className="text-[9px] font-bold">Aa</span>
         </ToolBtn>
       </div>
@@ -269,7 +317,7 @@ function RichTextArea({ value, onChange, placeholder, rows=3 }: {
 function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
   value:string; onChange:(v:string)=>void; placeholder?:string; rows?:number;
 }) {
-  const { editorRef, saveSelection, exec, handleInput, initContent } = useRichEditor(onChange);
+  const { editorRef, saveSelection, exec, handleInput, initContent, toggleCase } = useRichEditor(onChange);
   const [showColors, setShowColors] = useState(false);
   const [showBgColors, setShowBgColors] = useState(false);
 
@@ -289,7 +337,7 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-0.5 mb-1 pb-1 border-b border-border/30">
+      <div className="flex flex-wrap items-center gap-0.5 mb-1 pb-1 border-b border-border/30">
         <Btn onClick={()=>exec("bold")}      title="Gras">      <Bold      className="h-3 w-3"/></Btn>
         <Btn onClick={()=>exec("italic")}    title="Italique">  <Italic    className="h-3 w-3"/></Btn>
         <Btn onClick={()=>exec("underline")} title="Souligné">  <Underline className="h-3 w-3"/></Btn>
@@ -301,33 +349,58 @@ function RichTextAreaCompact({ value, onChange, placeholder, rows=2 }: {
         <Btn onClick={()=>exec("insertUnorderedList")} title="Puces">   <List        className="h-3 w-3"/></Btn>
         <Btn onClick={()=>exec("insertOrderedList")}   title="Numéros"> <ListOrdered className="h-3 w-3"/></Btn>
         <div className="w-px h-3 bg-border/60 mx-0.5"/>
+        <Btn onClick={()=>exec("removeFormat")} title="Effacer la mise en forme">
+          <span className="text-[8px] font-bold text-muted-foreground">↺</span>
+        </Btn>
+        <Btn onClick={()=>toggleCase()} title="Changer la casse (minuscule → MAJUSCULE → Titre)">
+          <span className="text-[8px] font-bold">Aa</span>
+        </Btn>
+        <div className="w-px h-3 bg-border/60 mx-0.5"/>
         <div className="relative">
-          <Btn onClick={()=>setShowColors(s=>!s)} title="Couleur texte"><Type className="h-3 w-3"/></Btn>
+          <Btn onClick={()=>{ setShowColors(s=>!s); setShowBgColors(false); }} title="Couleur texte"><Type className="h-3 w-3"/></Btn>
           {showColors && (
-            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1">
-              {COLORS.map(c=>(
-                <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
-                  className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
-                  style={{background:c}} />
-              ))}
+            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:110}}>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {COLORS.map(c=>(
+                  <button key={c} type="button"
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("foreColor",c); setShowColors(false);}}
+                    className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
+                    style={{background:c}} />
+                ))}
+              </div>
+              <label className="flex items-center gap-1 text-[8px] text-muted-foreground cursor-pointer">
+                <input type="color" defaultValue="#000000"
+                  onInput={e=>{saveSelection(); exec("foreColor",(e.target as HTMLInputElement).value);}}
+                  onChange={()=>setShowColors(false)}
+                  className="h-4 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                Autre
+              </label>
             </div>
           )}
         </div>
         <div className="relative">
-          <Btn onClick={()=>setShowBgColors(s=>!s)} title="Couleur fond"><Highlighter className="h-3 w-3"/></Btn>
+          <Btn onClick={()=>{ setShowBgColors(s=>!s); setShowColors(false); }} title="Couleur fond"><Highlighter className="h-3 w-3"/></Btn>
           {showBgColors && (
-            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg flex gap-1 flex-wrap w-24">
-              {BG_COLORS.map(c=>(
-                <button key={c} type="button"
-                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
-                  className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
-                  style={{background:c}} />
-              ))}
-              <button type="button"
-                onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
-                className="h-4 w-4 rounded border border-border/40 flex items-center justify-center text-[7px] text-muted-foreground"
-                title="Supprimer fond">✕</button>
+            <div className="absolute top-6 left-0 z-50 bg-card border border-border rounded-lg p-1.5 shadow-lg" style={{minWidth:110}}>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {BG_COLORS.map(c=>(
+                  <button key={c} type="button"
+                    onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor",c); setShowBgColors(false);}}
+                    className="h-4 w-4 rounded border border-border/40 hover:scale-110 transition-transform"
+                    style={{background:c}} />
+                ))}
+                <button type="button"
+                  onMouseDown={e=>{e.preventDefault(); saveSelection(); exec("hiliteColor","transparent"); setShowBgColors(false);}}
+                  className="h-4 w-4 rounded border border-border/40 flex items-center justify-center text-[7px] text-muted-foreground bg-white"
+                  title="Supprimer fond">✕</button>
+              </div>
+              <label className="flex items-center gap-1 text-[8px] text-muted-foreground cursor-pointer">
+                <input type="color" defaultValue="#fef08a"
+                  onInput={e=>{saveSelection(); exec("hiliteColor",(e.target as HTMLInputElement).value);}}
+                  onChange={()=>setShowBgColors(false)}
+                  className="h-4 w-7 rounded cursor-pointer border-0 p-0 bg-transparent" />
+                Autre
+              </label>
             </div>
           )}
         </div>
@@ -756,13 +829,22 @@ function LinesFormattingToolbar() {
           <Type className="h-3 w-3"/>
         </Btn>
         {showColors && (
-          <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
-            {COLORS.map(c => (
-              <button key={c} type="button"
-                onMouseDown={e => { e.preventDefault(); exec("foreColor", c); setShowColors(false); }}
-                className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
-                style={{ background: c }} />
-            ))}
+          <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:130}}>
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {COLORS.map(c => (
+                <button key={c} type="button"
+                  onMouseDown={e => { e.preventDefault(); exec("foreColor", c); setShowColors(false); }}
+                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
+                  style={{ background: c }} />
+              ))}
+            </div>
+            <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
+              <Type className="h-2.5 w-2.5"/>Autre :
+              <input type="color" defaultValue="#000000"
+                onInput={e=>{exec("foreColor",(e.target as HTMLInputElement).value);}}
+                onChange={()=>setShowColors(false)}
+                className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+            </label>
           </div>
         )}
       </div>
@@ -771,19 +853,46 @@ function LinesFormattingToolbar() {
           <Highlighter className="h-3 w-3"/>
         </Btn>
         {showBgColors && (
-          <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg flex flex-wrap gap-1 w-28">
-            {BG_COLORS.map(c => (
-              <button key={c} type="button"
-                onMouseDown={e => { e.preventDefault(); exec("hiliteColor", c); setShowBgColors(false); }}
-                className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
-                style={{ background: c }} />
-            ))}
+          <div className="absolute top-7 left-0 z-50 bg-card border border-border rounded-lg p-2 shadow-lg" style={{minWidth:130}}>
+            <div className="flex flex-wrap gap-1 mb-1.5">
+              {BG_COLORS.map(c => (
+                <button key={c} type="button"
+                  onMouseDown={e => { e.preventDefault(); exec("hiliteColor", c); setShowBgColors(false); }}
+                  className="h-5 w-5 rounded border border-border/40 hover:scale-110 transition-transform"
+                  style={{ background: c }} />
+              ))}
+              <button type="button"
+                onMouseDown={e => { e.preventDefault(); exec("hiliteColor", "transparent"); setShowBgColors(false); }}
+                className="h-5 w-5 rounded border border-border/40 flex items-center justify-center text-[8px] text-muted-foreground bg-white"
+                title="Supprimer fond">✕</button>
+            </div>
+            <label className="flex items-center gap-1 text-[9px] text-muted-foreground cursor-pointer">
+              <Highlighter className="h-2.5 w-2.5"/>Autre :
+              <input type="color" defaultValue="#fef08a"
+                onInput={e=>{exec("hiliteColor",(e.target as HTMLInputElement).value);}}
+                onChange={()=>setShowBgColors(false)}
+                className="h-5 w-8 rounded cursor-pointer border-0 p-0 bg-transparent" />
+            </label>
           </div>
         )}
       </div>
       <Sep/>
       <Btn onClick={() => exec("removeFormat")} title="Effacer la mise en forme">
         <span className="text-[9px] font-bold">Aa↺</span>
+      </Btn>
+      <Btn onClick={() => {
+        // toggleCase inline pour LinesFormattingToolbar
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+        const text = sel.getRangeAt(0).toString();
+        if (!text) return;
+        let newText: string;
+        if (text === text.toLowerCase()) newText = text.toUpperCase();
+        else if (text === text.toUpperCase()) newText = text.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+        else newText = text.toLowerCase();
+        document.execCommand("insertText", false, newText);
+      }} title="Changer la casse (minuscule → MAJUSCULE → Titre)">
+        <span className="text-[9px] font-bold">Aa</span>
       </Btn>
     </div>
   );
@@ -792,6 +901,7 @@ function LinesFormattingToolbar() {
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
 
 export default function InvoiceEditorPage() {
+  const { user } = useAuth();
   const [title,         setTitle]         = useState("");
   const [lines,         setLines]         = useState<InvoiceLine[]>([emptyLine()]);
   const [columns,       setColumns]       = useState<Column[]>(DEFAULT_COLUMNS);
@@ -815,6 +925,32 @@ export default function InvoiceEditorPage() {
   // Pour les blocs custom — nom personnalisé
   const [pendingCustomLabel, setPendingCustomLabel] = useState("");
   const [showCustomLabelInput, setShowCustomLabelInput] = useState(false);
+
+  // ── Charger les infos de l'org au montage ──────────────────────────────────
+  useEffect(() => {
+    const loadOrgInfo = async () => {
+      try {
+        const res = await fetch("/api/settings/company", { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        const org = data.data ?? data;
+        // Construire le texte vendeur depuis les infos de l'org
+        const parts: string[] = [];
+        if (org.legalName || org.name) parts.push(org.legalName || org.name);
+        if (org.address) parts.push(org.address);
+        if (org.address2) parts.push(org.address2);
+        if (org.postalCode || org.city) parts.push([org.postalCode, org.city].filter(Boolean).join(" "));
+        if (org.siret)     parts.push(`SIRET : ${org.siret}`);
+        if (org.tvaNumber) parts.push(`TVA : ${org.tvaNumber}`);
+        if (org.phone)     parts.push(`Tél : ${org.phone}`);
+        if (org.email)     parts.push(org.email);
+        if (parts.length > 0) setSellerInfo(parts.join("<br/>"));
+      } catch {
+        // Fallback silencieux — l'utilisateur peut saisir manuellement
+      }
+    };
+    loadOrgInfo();
+  }, []);
 
   const { totalHT, totalTVA, totalTTC } = computeTotals(lines);
 
@@ -965,21 +1101,21 @@ export default function InvoiceEditorPage() {
             className="bg-card border-b border-border/60 px-4 py-3 flex flex-wrap gap-4 items-center">
             {/* Couleur principale */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs">Couleur principale</Label>
+              <Label className="text-xs text-primary font-medium">Couleur principale</Label>
               <input type="color" value={design.primaryColor}
                 onChange={e => setDesign(d => ({...d, primaryColor:e.target.value, headerBg:e.target.value+"18"}))}
                 className="h-7 w-10 rounded cursor-pointer border border-border" />
             </div>
             {/* Couleur secondaire */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs">Couleur secondaire</Label>
+              <Label className="text-xs text-primary font-medium">Couleur secondaire</Label>
               <input type="color" value={design.secondaryColor}
                 onChange={e => setDesign(d => ({...d, secondaryColor:e.target.value}))}
                 className="h-7 w-10 rounded cursor-pointer border border-border" />
             </div>
             {/* Police */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs">Police</Label>
+              <Label className="text-xs text-primary font-medium">Police</Label>
               <select value={design.fontFamily}
                 onChange={e => setDesign(d => ({...d, fontFamily:e.target.value}))}
                 className="h-7 text-xs bg-background border border-border rounded px-2">
@@ -988,7 +1124,7 @@ export default function InvoiceEditorPage() {
             </div>
             {/* Bordure */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs">Bordure</Label>
+              <Label className="text-xs text-primary font-medium">Bordure</Label>
               <button type="button"
                 onClick={() => setDesign(d => ({...d, showBorder:!d.showBorder}))}
                 className={`h-7 px-3 rounded text-xs border transition-colors ${design.showBorder ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>
@@ -1008,19 +1144,19 @@ export default function InvoiceEditorPage() {
           {/* Infos facture + Logo */}
           <div className="grid grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">N° Facture</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">N° Facture</Label>
               <Input value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Date émission</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Date émission</Label>
               <Input type="date" value={issueDate} onChange={e=>setIssueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Date échéance</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Date échéance</Label>
               <Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Logo</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Logo</Label>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" className="h-8 text-xs flex-1"
                   onClick={() => { const i=document.createElement("input"); i.type="file"; i.accept="image/*";
@@ -1042,14 +1178,14 @@ export default function InvoiceEditorPage() {
           {/* Vendeur / Acheteur */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Vos coordonnées</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Vos coordonnées</Label>
               <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
                 <RichTextArea value={sellerInfo} onChange={setSellerInfo}
                   placeholder={"Nom / Raison sociale\nAdresse\nSIRET : \nTVA : "} rows={4} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Client</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Client</Label>
               <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
                 <RichTextArea value={buyerInfo} onChange={setBuyerInfo}
                   placeholder={"Nom du client\nAdresse\nSIRET : "} rows={4} />
@@ -1059,7 +1195,7 @@ export default function InvoiceEditorPage() {
 
           {/* Titre */}
           <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Titre de la prestation</Label>
+            <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Titre de la prestation</Label>
             <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
               <RichTextArea value={title} onChange={setTitle}
                 placeholder="Ex: Prestation VTC mensuelle — Janvier 2026" rows={2} />
@@ -1069,7 +1205,7 @@ export default function InvoiceEditorPage() {
           {/* ── TABLEAU LIGNES ──────────────────────────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Lignes</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Lignes</Label>
               <div className="flex items-center gap-2">
 
                 {/* Menu colonnes */}
@@ -1084,7 +1220,7 @@ export default function InvoiceEditorPage() {
                         exit={{ opacity:0,y:-4 }}
                         className="absolute right-0 top-8 z-50 bg-card border border-border rounded-xl shadow-xl p-3 w-72 space-y-2">
                         <div className="flex items-center justify-between mb-1">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Colonnes</p>
+                          <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">Colonnes</p>
                           <button onClick={()=>setShowColMenu(false)}
                             className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <X className="h-3.5 w-3.5" />
@@ -1114,7 +1250,7 @@ export default function InvoiceEditorPage() {
                         </Reorder.Group>
                         {OPTIONAL_COLUMNS.filter(o=>!columns.find(c=>c.id===o.id)).length>0&&(
                           <div className="border-t border-border/40 pt-2">
-                            <p className="text-[10px] text-muted-foreground mb-1">Ajouter</p>
+                            <p className="text-[10px] text-primary font-medium mb-1">Ajouter</p>
                             {OPTIONAL_COLUMNS.filter(o=>!columns.find(c=>c.id===o.id)).map(col=>(
                               <button key={col.id}
                                 onClick={()=>setColumns(c=>[...c.slice(0,-1),{...col,visible:true},c[c.length-1]])}
@@ -1151,7 +1287,7 @@ export default function InvoiceEditorPage() {
             <div className="flex items-center gap-1 px-2 py-1.5 bg-muted/30 rounded-lg border border-border/40">
               <div className="w-5"/>
               {visibleColumns.map(col=>(
-                <div key={col.id} className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold truncate"
+                <div key={col.id} className="text-[10px] uppercase tracking-wider text-primary font-semibold truncate"
                   style={{ flex:col.width }}>{col.label}</div>
               ))}
               <div className="w-14"/>
@@ -1207,7 +1343,7 @@ export default function InvoiceEditorPage() {
                       {expandedLines.has(line.id)&&(
                         <motion.div initial={{ height:0 }} animate={{ height:"auto" }} exit={{ height:0 }} className="overflow-hidden">
                           <div className="px-4 pb-3 pt-1 border-t border-border/40 bg-muted/10">
-                            <Label className="text-[10px] text-muted-foreground mb-1.5 block">+ Description détaillée</Label>
+                            <Label className="text-[10px] text-primary font-medium mb-1.5 block">+ Description détaillée</Label>
                             <RichTextAreaCompact value={String(line.description??"")} onChange={v=>updateLine(line.id,"description",v)}
                               placeholder="Détails de la prestation..." rows={3} />
                           </div>
@@ -1312,7 +1448,7 @@ export default function InvoiceEditorPage() {
                     exit={{ opacity:0,y:-4 }}
                     className="absolute bottom-10 left-0 right-0 z-50 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
                     <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Choisir un bloc</p>
+                      <p className="text-[10px] uppercase tracking-wider text-primary font-semibold">Choisir un bloc</p>
                       <button onClick={()=>setShowBlockMenu(false)}
                         className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                         <X className="h-3 w-3"/>
