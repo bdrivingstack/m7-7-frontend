@@ -35,7 +35,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <CheckCircle className="h-4 w-4 text-success" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Rapprochées</span>
-              <InfoTooltip title="Transactions rapprochées" description="Mouvements bancaires qui ont été associés à une facture ou dépense dans M7Sept." benefit="Une transaction rapprochée signifie que votre comptabilité correspond à votre relevé bancaire réel." />
+              <InfoTooltip title="Transactions rapprochées" description="Mouvements bancaires qui ont été associés à une facture ou dépense dans LE BELVEDERE." benefit="Une transaction rapprochée signifie que votre comptabilité correspond à votre relevé bancaire réel." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{matched.length}</p>
           </CardContent>
@@ -71,7 +71,7 @@ export default function ReconciliationPage() {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-warning" />
               Transactions à rapprocher ({unmatched.length})
-              <InfoTooltip title="Transactions à rapprocher" description="Ces mouvements bancaires ont été importés mais n'ont pas encore été associés à une facture ou une dépense dans M7Sept." benefit="Cliquez sur 'Associer' pour lier manuellement, ou utilisez 'IA' pour une suggestion automatique basée sur le montant et la date." />
+              <InfoTooltip title="Transactions à rapprocher" description="Ces mouvements bancaires ont été importés mais n'ont pas encore été associés à une facture ou une dépense dans LE BELVEDERE." benefit="Cliquez sur 'Associer' pour lier manuellement, ou utilisez 'IA' pour une suggestion automatique basée sur le montant et la date." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -111,7 +111,7 @@ export default function ReconciliationPage() {
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success" />
             Transactions rapprochées ({matched.length})
-            <InfoTooltip title="Transactions rapprochées" description="Ces mouvements bancaires ont été associés avec succès à une pièce comptable dans M7Sept." benefit="L'historique des rapprochements vous permet de justifier chaque mouvement en cas de contrôle fiscal." />
+            <InfoTooltip title="Transactions rapprochées" description="Ces mouvements bancaires ont été associés avec succès à une pièce comptable dans LE BELVEDERE." benefit="L'historique des rapprochements vous permet de justifier chaque mouvement en cas de contrôle fiscal." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

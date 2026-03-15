@@ -46,7 +46,7 @@ interface Suggestion {
 
 const aiResponses: Record<string, { content: string; actions?: Action[] }> = {
   default: {
-    content: "Je suis votre assistant IA M7:7. Je peux vous aider à générer des documents, analyser vos finances, rédiger des relances ou détecter des anomalies dans vos données. Que puis-je faire pour vous ?",
+    content: "Je suis votre assistant IA LE BELVEDERE. Je peux vous aider à générer des documents, analyser vos finances, rédiger des relances ou détecter des anomalies dans vos données. Que puis-je faire pour vous ?",
   },
   facture: {
     content: `✅ **Facture générée avec succès**
@@ -233,7 +233,7 @@ export default function AIAssistantPage() {
       id: "welcome",
       role: "assistant",
       timestamp: new Date(),
-      content: `Bonjour ! Je suis votre assistant IA M7:7. 👋\n\nJe connais toutes vos données financières en temps réel et je peux vous aider à :\n\n- **Générer** devis, factures et relances en langage naturel\n- **Analyser** votre trésorerie et détecter des anomalies\n- **Catégoriser** automatiquement vos transactions bancaires\n- **Prévoir** votre cashflow sur 30, 60 ou 90 jours\n\nQue puis-je faire pour vous aujourd'hui ?`,
+      content: `Bonjour ! Je suis votre assistant IA LE BELVEDERE. 👋\n\nJe connais toutes vos données financières en temps réel et je peux vous aider à :\n\n- **Générer** devis, factures et relances en langage naturel\n- **Analyser** votre trésorerie et détecter des anomalies\n- **Catégoriser** automatiquement vos transactions bancaires\n- **Prévoir** votre cashflow sur 30, 60 ou 90 jours\n\nQue puis-je faire pour vous aujourd'hui ?`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -392,7 +392,7 @@ export default function AIAssistantPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm">M7 AI Assistant</p>
+                <p className="font-semibold text-sm">LE BELVEDERE AI Assistant</p>
                 <div className="flex items-center gap-1">
                   <div className="h-1.5 w-1.5 rounded-full bg-success" />
                   <span className="text-[10px] text-success">En ligne</span>

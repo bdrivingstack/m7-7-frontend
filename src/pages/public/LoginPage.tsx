@@ -115,7 +115,7 @@ export default function LoginPage() {
               {step === "mfa" ? "Double authentification" : "Connexion"}
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              {step === "mfa" ? "Code à 6 chiffres de votre application" : "Accédez à votre espace M7Sept"}
+              {step === "mfa" ? "Code à 6 chiffres de votre application" : "Accédez à votre espace LE BELVEDERE"}
             </p>
           </div>
 

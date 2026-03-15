@@ -142,7 +142,7 @@ export default function SocialPage() {
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Prochaine échéance</span>
-              <InfoTooltip title="Prochaine échéance URSSAF" description="Date limite du prochain versement de cotisations sociales à l'URSSAF." benefit="Notez cette date et assurez-vous d'avoir les fonds disponibles. M7Sept vous enverra un rappel automatique." />
+              <InfoTooltip title="Prochaine échéance URSSAF" description="Date limite du prochain versement de cotisations sociales à l'URSSAF." benefit="Notez cette date et assurez-vous d'avoir les fonds disponibles. LE BELVEDERE vous enverra un rappel automatique." />
             </div>
             <p className="text-xl font-display font-bold">
               {new Date(socialContributions.nextDeadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}

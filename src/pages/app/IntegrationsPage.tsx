@@ -46,7 +46,7 @@ const integrations: Integration[] = [
   {
     id: "stripe",
     name: "Stripe",
-    description: "Acceptez les paiements par carte, lien de paiement et abonnements directement depuis M7:7.",
+    description: "Acceptez les paiements par carte, lien de paiement et abonnements directement depuis LE BELVEDERE.",
     logo: "💳",
     category: "paiement",
     status: "connected",
@@ -247,7 +247,7 @@ const integrations: Integration[] = [
   {
     id: "zapier",
     name: "Zapier",
-    description: "Connectez M7:7 à 6 000+ applications via Zapier sans aucune ligne de code.",
+    description: "Connectez LE BELVEDERE à 6 000+ applications via Zapier sans aucune ligne de code.",
     logo: "⚡",
     category: "api",
     status: "available",
@@ -265,8 +265,8 @@ const integrations: Integration[] = [
   },
   {
     id: "api",
-    name: "API REST M7:7",
-    description: "Accès complet à l'API REST M7:7 avec authentification OAuth2 et webhooks.",
+    name: "API REST LE BELVEDERE",
+    description: "Accès complet à l'API REST LE BELVEDERE avec authentification OAuth2 et webhooks.",
     logo: "🔌",
     category: "api",
     status: "connected",
@@ -537,7 +537,7 @@ export default function IntegrationsPage() {
                   <Code2 className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <p className="font-semibold">API REST & Webhooks M7:7</p>
+                  <p className="font-semibold">API REST & Webhooks LE BELVEDERE</p>
                   <p className="text-sm text-muted-foreground mt-0.5">
                     Accès complet à toutes vos données · OAuth2 · SDK disponibles · 1 000 req/min
                   </p>

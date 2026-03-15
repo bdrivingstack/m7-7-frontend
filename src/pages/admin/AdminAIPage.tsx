@@ -35,7 +35,7 @@ export default function AdminAIPage() {
         <CardContent className="space-y-4">
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs text-muted-foreground flex items-start gap-2">
             <Shield className="h-4 w-4 text-primary flex-shrink-0 mt-0.5"/>
-            L'IA de M7:7 utilise Claude (Anthropic) via API. Aucune donnée client n'est utilisée pour l'entraînement. Toutes les requêtes sont chiffrées TLS. Les clés API sont stockées chiffrées AES-256.
+            L'IA LE BELVEDERE utilise Claude (Anthropic) via API. Aucune donnée client n'est utilisée pour l'entraînement. Toutes les requêtes sont chiffrées TLS. Les clés API sont stockées chiffrées AES-256.
           </div>
           {[{label:"Filtre de contenu inapproprié",desc:"Bloque les requêtes non liées à la facturation"},
             {label:"Logs de toutes les requêtes IA",desc:"Audit complet pour conformité"},

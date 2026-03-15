@@ -93,7 +93,7 @@ const faqs = [
   { q: "Y a-t-il un engagement ?", a: "Non. Vous pouvez annuler à tout moment. En annulant, vous gardez l'accès jusqu'à la fin de la période payée." },
   { q: "Puis-je changer de plan ?", a: "Oui, vous pouvez upgrader ou downgrader à tout moment. Le changement est proratisé automatiquement." },
   { q: "Les données sont-elles sécurisées ?", a: "Absolument. Chiffrement AES-256 au repos, TLS en transit, hébergement en Europe, conformité RGPD. Consultez notre page Sécurité." },
-  { q: "Qu'est-ce que la facturation électronique ?", a: "La réforme e-facture 2026 rend obligatoire l'émission et la réception de factures au format électronique normalisé. M7:7 est déjà prêt." },
+  { q: "Qu'est-ce que la facturation électronique ?", a: "La réforme e-facture 2026 rend obligatoire l'émission et la réception de factures au format électronique normalisé. LE BELVEDERE est déjà prêt." },
   { q: "L'IA est-elle incluse dans tous les plans ?", a: "Une IA basique est incluse dès le plan Micro. L'IA avancée (copilote financier, forecast, détection d'anomalies) est disponible à partir du plan Pro." },
   { q: "Comment fonctionne l'essai gratuit ?", a: "14 jours sans carte bancaire. Accès complet au plan Pro. À l'issue de l'essai, choisissez votre plan ou passez en Micro gratuit." },
 ];

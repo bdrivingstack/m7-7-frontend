@@ -28,7 +28,7 @@ export default function BanksPage() {
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 Solde total
-                <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés à M7Sept en temps réel." benefit="Cette vue consolidée vous donne une image instantanée de votre trésorerie disponible, tous comptes confondus." />
+                <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés au BELVEDERE en temps réel." benefit="Cette vue consolidée vous donne une image instantanée de votre trésorerie disponible, tous comptes confondus." />
               </p>
               <p className="text-3xl font-display font-bold">
                 {fmt(bankAccounts.reduce((s, a) => s + a.balance, 0))}

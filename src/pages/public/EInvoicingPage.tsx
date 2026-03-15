@@ -18,13 +18,13 @@ const features = [
   {
     icon: Receipt, color: "from-blue-500 to-cyan-600",
     title: "Réception e-facture",
-    desc: "Recevez et traitez les factures fournisseurs électroniques directement dans M7:7.",
+    desc: "Recevez et traitez les factures fournisseurs électroniques directement dans LE BELVEDERE.",
     items: ["Import automatique", "Rapprochement commandes", "Validation workflow", "Archivage légal", "Traçabilité complète"],
   },
   {
     icon: Globe, color: "from-emerald-500 to-teal-600",
     title: "E-reporting",
-    desc: "Transmettez les données de transactions à l'administration fiscale. M7:7 gère tout automatiquement.",
+    desc: "Transmettez les données de transactions à l'administration fiscale. LE BELVEDERE gère tout automatiquement.",
     items: ["Transactions B2B", "Transactions B2C", "Données de paiement", "Envoi automatique", "Journal des transmissions"],
   },
   {
@@ -63,7 +63,7 @@ export default function EInvoicingPage() {
               <span className="text-gradient">e-facture 2026</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              L'obligation de facturation électronique arrive. M7:7 intègre nativement l'émission, la réception, le e-reporting et la conformité PPF/PDP.
+              L'obligation de facturation électronique arrive. LE BELVEDERE intègre nativement l'émission, la réception, le e-reporting et la conformité PPF/PDP.
             </p>
             <div className="flex items-center justify-center gap-3">
               <Link to="/register">

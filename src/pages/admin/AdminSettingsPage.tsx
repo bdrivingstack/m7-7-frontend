@@ -16,7 +16,7 @@ export default function AdminSettingsPage() {
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Globe className="h-4 w-4"/>Plateforme</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5"><Label className="text-xs">Nom de la plateforme</Label><Input defaultValue="M7:7" className="h-9 text-sm"/></div>
+          <div className="space-y-1.5"><Label className="text-xs">Nom de la plateforme</Label><Input defaultValue="LE BELVEDERE" className="h-9 text-sm"/></div>
           <div className="space-y-1.5"><Label className="text-xs">URL principale</Label><Input defaultValue="https://app.m7seven.app" className="h-9 text-sm font-mono"/></div>
           <div className="space-y-1.5"><Label className="text-xs">URL portail client</Label><Input defaultValue="https://portal.m7seven.app" className="h-9 text-sm font-mono"/></div>
           {[{label:"Mode maintenance",desc:"Bloque l'accès aux tenants (admin uniquement)"},{label:"Inscription publique",desc:"Permet la création de nouveaux comptes"},{label:"Période d'essai gratuite",desc:"14 jours sans CB"}].map(item=>(

@@ -241,7 +241,7 @@ export const DASHBOARD_TOOLTIPS = {
   einvoicing: {
     title:       "Facturation électronique",
     description: "Depuis septembre 2026, toutes les entreprises françaises assujetties à la TVA doivent recevoir des factures au format électronique (Factur-X, UBL ou CII). L'émission devient obligatoire en 2027.",
-    benefit:     "M7:7 gère automatiquement la soumission à votre PDP partenaire et l'archivage légal 10 ans.",
+    benefit:     "LE BELVEDERE gère automatiquement la soumission à votre PDP partenaire et l'archivage légal 10 ans.",
     icon:        "i" as const,
   },
   urssaf: {

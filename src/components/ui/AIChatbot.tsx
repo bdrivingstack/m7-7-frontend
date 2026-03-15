@@ -107,7 +107,7 @@ export default function AIChatbot({ orgName, activity, userName, legalForm }: AI
       const welcome: Message = {
         id:        "welcome",
         role:      "assistant",
-        content:   `Bonjour ${userName || ""}${userName ? " 👋" : "👋"} ! Je suis votre assistant M7:7, spécialisé en **gestion financière** pour les ${activityLabel}s.\n\nJe peux vous aider avec :\n• La facturation et les devis\n• Les relances clients\n• La TVA et les déclarations\n• La facture électronique (réforme 2026)\n• L'URSSAF et vos cotisations\n\nQue puis-je faire pour vous ?`,
+        content:   `Bonjour ${userName || ""}${userName ? " 👋" : "👋"} ! Je suis votre assistant LE BELVEDERE, spécialisé en **gestion financière** pour les ${activityLabel}s.\n\nJe peux vous aider avec :\n• La facturation et les devis\n• Les relances clients\n• La TVA et les déclarations\n• La facture électronique (réforme 2026)\n• L'URSSAF et vos cotisations\n\nQue puis-je faire pour vous ?`,
         timestamp: new Date(),
       };
       setMessages([welcome]);
@@ -142,7 +142,7 @@ export default function AIChatbot({ orgName, activity, userName, legalForm }: AI
 
     try {
       // Appel API Claude via Anthropic
-      const systemPrompt = `Tu es l'assistant IA de M7:7, une plateforme SaaS de gestion financière française.
+      const systemPrompt = `Tu es l'assistant IA de LE BELVEDERE, une plateforme SaaS de gestion financière française.
 Tu aides des ${activity || legalForm || "entrepreneurs"} à gérer leur facturation, leurs devis, leurs paiements, la TVA, l'URSSAF et la facturation électronique.
 ${orgName ? `L'entreprise s'appelle ${orgName}.` : ""}
 ${legalForm ? `Forme juridique : ${legalForm}.` : ""}
@@ -151,7 +151,7 @@ Règles :
 - Réponds toujours en français, de façon concise et pratique
 - Utilise des exemples chiffrés quand c'est utile
 - Mentionne les spécificités françaises (TVA, URSSAF, Factur-X, etc.)
-- Si une action est possible dans M7:7, indique comment la faire
+- Si une action est possible dans LE BELVEDERE, indique comment la faire
 - Utilise des emojis avec modération pour la lisibilité
 - Sois bienveillant et professionnel
 - Réponds en maximum 150 mots sauf si une explication détaillée est vraiment nécessaire`;
@@ -246,7 +246,7 @@ Règles :
                 <Bot className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">Assistant M7:7</p>
+                <p className="text-sm font-semibold">Assistant LE BELVEDERE</p>
                 {!minimized && (
                   <p className="text-[10px] text-white/70">
                     {loading ? "En train d'écrire..." : "En ligne • Répond en quelques secondes"}

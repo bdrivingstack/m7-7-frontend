@@ -69,7 +69,7 @@ const securityChecks = [
 const recentAlerts = [
   { level: "critical", msg: "Brute force détecté — 847 tentatives sur /auth/login",    time: "Il y a 2h",   ip: "185.234.219.xx", blocked: true },
   { level: "warning",  msg: "Pic de trafic API inhabituel — org tenant #1847",          time: "Il y a 5h",   ip: "—",              blocked: false },
-  { level: "info",     msg: "Certificat TLS *.m7seven.app renouvelé automatiquement", time: "Hier",        ip: "—",              blocked: false },
+  { level: "info",     msg: "Certificat TLS *.LE BELVEDERE renouvelé automatiquement", time: "Hier",        ip: "—",              blocked: false },
   { level: "warning",  msg: "Tentative d'accès backoffice avec token expiré",          time: "Il y a 2j",   ip: "78.24.55.xx",    blocked: true },
   { level: "info",     msg: "Audit de sécurité Snyk — 0 vulnérabilité critique",       time: "Il y a 3j",   ip: "—",              blocked: false },
 ];

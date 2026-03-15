@@ -158,7 +158,7 @@ export default function LandingPage() {
         <div className="container text-center">
           <div className="max-w-xl mx-auto">
             <h2 className="text-3xl font-display font-bold mb-4">Prêt à simplifier votre gestion ?</h2>
-            <p className="text-muted-foreground mb-6">Rejoignez des milliers d'entreprises qui font confiance à M7:7.</p>
+            <p className="text-muted-foreground mb-6">Rejoignez des milliers d'entreprises qui font confiance à LE BELVEDERE.</p>
             <Link to="/register">
               <Button size="lg" className="gradient-primary text-primary-foreground shadow-glow">
                 Essai gratuit 14 jours <ArrowRight className="ml-2 h-4 w-4" />

@@ -97,7 +97,7 @@ export default function SecurityPage() {
               <span className="text-gradient">notre priorité absolue</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              M7:7 a été conçu dès le premier jour avec une architecture sécurisée. Chiffrement, isolation, audit, conformité — rien n'est laissé au hasard.
+              LE BELVEDERE a été conçu dès le premier jour avec une architecture sécurisée. Chiffrement, isolation, audit, conformité — rien n'est laissé au hasard.
             </p>
           </motion.div>
         </motion.div>

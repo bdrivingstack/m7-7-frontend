@@ -107,7 +107,7 @@ export default function AIPage() {
           <div className="rounded-2xl border border-border bg-background overflow-hidden shadow-lg">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
               <Bot className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">M7:7 IA Assistant</span>
+              <span className="text-sm font-medium">LE BELVEDERE IA Assistant</span>
               <Badge variant="secondary" className="ml-auto text-[10px]">En ligne</Badge>
             </div>
             <div className="p-4 space-y-3 min-h-48">

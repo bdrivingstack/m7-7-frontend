@@ -29,7 +29,7 @@ const sections = [
   {
     icon: Globe, color: "from-orange-500 to-amber-600",
     title: "SDKs",
-    desc: "Librairies officielles pour intégrer M7:7 rapidement.",
+    desc: "Librairies officielles pour intégrer LE BELVEDERE  rapidement.",
     links: ["Node.js / TypeScript", "Python", "PHP", "REST pur"],
   },
 ];
@@ -68,10 +68,10 @@ export default function DocsPage() {
               <Code className="h-3 w-3 mr-1" /> Documentation
             </Badge>
             <h1 className="text-4xl md:text-5xl font-display font-bold leading-[1.1] mb-6">
-              API <span className="text-gradient">M7:7</span>
+              API <span className="text-gradient">LE BELVEDERE</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
-              REST API complète pour intégrer M7:7 dans votre système. Webhooks, SDKs, documentation OpenAPI.
+              REST API complète pour intégrer LE BELVEDERE dans votre système. Webhooks, SDKs, documentation OpenAPI.
             </p>
             <div className="flex items-center justify-center gap-3">
               <Button className="gradient-primary text-primary-foreground shadow-glow">

@@ -1,4 +1,4 @@
-// Mock data for M7:7 SaaS platform
+// Mock data for LE BELVEDERE SaaS platform
 
 export const dashboardKPIs = {
   revenueMonthly: 47_850,

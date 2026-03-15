@@ -24,7 +24,7 @@ export default function AdminDashboardPage() {
     <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
       <motion.div variants={item}>
         <h1 className="text-2xl font-display font-bold">Backoffice SaaS</h1>
-        <p className="text-sm text-muted-foreground">Vue globale de la plateforme M7:7</p>
+        <p className="text-sm text-muted-foreground">Vue globale de la plateforme LE BELVEDERE</p>
       </motion.div>
 
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">

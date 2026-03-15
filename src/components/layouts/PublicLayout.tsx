@@ -21,7 +21,7 @@ export default function PublicLayout() {
             <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight">M7Sept</span>
+            <span className="font-display font-bold text-xl tracking-tight">LE BELVEDERE</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

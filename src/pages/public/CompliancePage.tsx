@@ -27,7 +27,7 @@ const topics = [
     icon: FileText,
     color: "from-emerald-500 to-teal-600",
     title: "Obligations comptables",
-    desc: "M7:7 respecte les règles comptables françaises : numérotation chronologique, inaltérabilité, piste d'audit.",
+    desc: "LE BELVEDERE respecte les règles comptables françaises : numérotation chronologique, inaltérabilité, piste d'audit.",
     items: ["Numérotation unique et chronologique", "Inaltérabilité des factures validées", "Piste d'audit fiable", "Mentions légales automatiques", "Export FEC conforme"],
   },
   {
@@ -43,7 +43,7 @@ const timeline = [
   { date: "1er sept. 2026", label: "Grandes entreprises", status: "future", desc: "Obligation d'émission pour les grandes entreprises." },
   { date: "1er sept. 2027", label: "ETI", status: "future", desc: "Extension aux entreprises de taille intermédiaire." },
   { date: "1er sept. 2027", label: "PME & TPE", status: "future", desc: "Généralisation à toutes les entreprises." },
-  { date: "Dès maintenant", label: "M7:7 prêt", status: "current", desc: "Activez la réception e-facture dès aujourd'hui." },
+  { date: "Dès maintenant", label: "LE BELVEDERE prêt", status: "current", desc: "Activez la réception e-facture dès aujourd'hui." },
 ];
 
 export default function CompliancePage() {
@@ -62,7 +62,7 @@ export default function CompliancePage() {
               <span className="text-gradient">prêt pour demain</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              RGPD, e-facture 2026, obligations comptables françaises. M7:7 intègre les exigences réglementaires nativement.
+              RGPD, e-facture 2026, obligations comptables françaises. LE BELVEDERE intègre les exigences réglementaires nativement.
             </p>
           </motion.div>
         </motion.div>
@@ -105,7 +105,7 @@ export default function CompliancePage() {
         <div className="container max-w-3xl">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-display font-bold mb-3">Calendrier e-facture</h2>
-            <p className="text-muted-foreground">La réforme s'applique progressivement. M7:7 vous y prépare dès maintenant.</p>
+            <p className="text-muted-foreground">La réforme s'applique progressivement. LE BELVEDERE vous y prépare dès maintenant.</p>
           </div>
           <div className="relative">
             <div className="absolute left-6 top-0 bottom-0 w-px bg-border" />

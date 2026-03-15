@@ -44,7 +44,7 @@ export function AdminSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-display font-bold text-sm text-sidebar-accent-foreground">M7:7 Admin</span>
+              <span className="font-display font-bold text-sm text-sidebar-accent-foreground">LE BELVEDERE Admin</span>
               <span className="text-[10px] text-sidebar-foreground/60">Backoffice</span>
             </div>
           )}

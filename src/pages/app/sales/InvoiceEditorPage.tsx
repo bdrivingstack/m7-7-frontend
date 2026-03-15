@@ -461,7 +461,7 @@ function PdfPage({ pageNum, totalPages, isFirst, invoiceNumber, design, sellerIn
 
       {/* Numéro de page en bas */}
       <div className="absolute bottom-0 left-0 right-0 px-6 py-2 flex justify-between items-center border-t border-gray-100 text-[9px] text-gray-400">
-        <span>{footerContent || `Document généré par M7Sept • Facture électronique conforme Factur-X`}</span>
+        <span>{footerContent || `Document généré par  • Facture électronique conforme Factur-X`}</span>
         <span>Page {pageNum} / {totalPages}</span>
       </div>
     </div>
@@ -1069,7 +1069,7 @@ export default function InvoiceEditorPage() {
         yPos += pageH;
       }
 
-      pdf.save(`Facture-${invoiceNumber || "M7Sept"}.pdf`);
+      pdf.save(`Facture-${invoiceNumber || "LE BELVEDERE"}.pdf`);
     } catch (err) {
       console.error("PDF error, fallback to print:", err);
       window.print();

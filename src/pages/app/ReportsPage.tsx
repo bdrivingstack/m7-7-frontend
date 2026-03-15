@@ -748,7 +748,7 @@ export default function ReportsPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />Alertes & recommandations IA
-                <InfoTooltip title="Alertes & recommandations IA" description="Analyse automatique de vos données financières par l'IA pour détecter anomalies, risques et opportunités d'optimisation." benefit="Ces alertes sont générées en temps réel à partir de vos données. Plus vous utilisez M7Sept, plus les recommandations sont précises." icon="?" />
+                <InfoTooltip title="Alertes & recommandations IA" description="Analyse automatique de vos données financières par l'IA pour détecter anomalies, risques et opportunités d'optimisation." benefit="Ces alertes sont générées en temps réel à partir de vos données. Plus vous utilisez LE BELVEDERE, plus les recommandations sont précises." icon="?" />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2.5">
