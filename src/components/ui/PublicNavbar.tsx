@@ -57,7 +57,7 @@ export default function PublicNavbar({ showClose = false, onClose }: PublicNavba
             <Zap className="h-4 w-4 text-white" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-base tracking-tight">M7Sept</span>
+            <span className="font-bold text-base tracking-tight">LE BELVEDERE</span>
             <span className="text-[9px] text-muted-foreground italic hidden sm:block">Cherchez, Trouvez et Optimisez.</span>
           </div>
         </Link>
