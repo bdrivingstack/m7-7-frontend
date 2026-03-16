@@ -1179,19 +1179,19 @@ export default function InvoiceEditorPage() {
           {/* Infos facture + Logo */}
           <div className="grid grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>N° Facture</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">N° Facture</span>
               <Input value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Date émission</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Date émission</span>
               <Input type="date" value={issueDate} onChange={e=>setIssueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Date échéance</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Date échéance</span>
               <Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Logo</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Logo</span>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" className="h-8 text-xs flex-1"
                   onClick={() => { const i=document.createElement("input"); i.type="file"; i.accept="image/*";
@@ -1213,14 +1213,14 @@ export default function InvoiceEditorPage() {
           {/* Vendeur / Acheteur */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-0">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Vos coordonnées</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Vos coordonnées</span>
               <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
                 <RichTextArea value={sellerInfo} onChange={setSellerInfo}
                   placeholder={"Nom / Raison sociale\nAdresse\nSIRET : \nTVA : "} rows={4} />
               </div>
             </div>
             <div className="space-y-0">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Client</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Client</span>
               <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
                 <RichTextArea value={buyerInfo} onChange={setBuyerInfo}
                   placeholder={"Nom du client\nAdresse\nSIRET : "} rows={4} />
@@ -1230,7 +1230,7 @@ export default function InvoiceEditorPage() {
 
           {/* Titre */}
           <div className="space-y-0">
-            <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Titre de la prestation</span>
+            <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Titre de la prestation</span>
             <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
               <RichTextArea value={title} onChange={setTitle}
                 placeholder="Ex: Prestation VTC mensuelle — Janvier 2026" rows={2} />
@@ -1240,7 +1240,7 @@ export default function InvoiceEditorPage() {
           {/* ── TABLEAU LIGNES ──────────────────────────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Lignes</span>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none gradient-primary">Lignes</span>
               <div className="flex items-center gap-2">
 
                 {/* Menu colonnes */}
@@ -1474,7 +1474,7 @@ export default function InvoiceEditorPage() {
                 className="w-full h-9 text-xs rounded-lg border-0 font-semibold
                            text-white hover:opacity-90
                            transition-all flex items-center justify-center gap-2"
-                style={{ backgroundColor: "#cbc1fb" }}
+                style={{ backgroundColor: "#995ef7" }}
                 onClick={()=>setShowBlockMenu(!showBlockMenu)}>
                 <Plus className="h-3.5 w-3.5"/>Ajouter un bloc
               </button>
