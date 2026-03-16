@@ -22,7 +22,7 @@ export default function PublicLayout() {
               <Zap className="h-5 w-5 text-primary-foreground" />
             </div>
             <div className="flex flex-col leading-tight">
-            <span className="font-bold text-base tracking-tight">HERWAN</span>
+            <span className="font-bold text-base tracking-tight">LE BELVEDERE</span>
             <span className="text-[9px] text-muted-foreground italic hidden sm:block">Cherchez, Trouvez et Optimisez.</span>
           </div>
           </Link>
