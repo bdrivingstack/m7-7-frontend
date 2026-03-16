@@ -147,14 +147,14 @@ export function AppSidebar() {
         {/* FACTURATION */}
         <NavGroup label="Facturation"          items={facturationNav}  defaultPath="/app/sales"       collapsed={collapsed} />
 
+        {/* CLIENTS */}
+        <NavGroup label="Clients"              items={clientsNav}      defaultPath="/app/customers"   collapsed={collapsed} />
+
         {/* PAIEMENTS & TRÉSORERIE */}
         <NavGroup label="Paiements & Trésorerie" items={tresorerieNav} defaultPath="/app/payments"    collapsed={collapsed} />
 
         {/* COMPTABILITÉ */}
         <NavGroup label="Comptabilité"         items={comptabiliteNav} defaultPath="/app/accounting"  collapsed={collapsed} />
-
-        {/* CLIENTS */}
-        <NavGroup label="Clients"              items={clientsNav}      defaultPath="/app/customers"   collapsed={collapsed} />
 
         {/* ANALYSE */}
         <NavGroup label="Analyse"              items={analyseNav}      defaultPath="/app/reports"     collapsed={collapsed} />
