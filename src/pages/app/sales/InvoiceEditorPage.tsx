@@ -461,7 +461,7 @@ function PdfPage({ pageNum, totalPages, isFirst, invoiceNumber, design, sellerIn
 
       {/* Numéro de page en bas */}
       <div className="absolute bottom-0 left-0 right-0 px-6 py-2 flex justify-between items-center border-t border-gray-100 text-[9px] text-gray-400">
-        <span>{footerContent || `Document généré par  • Facture électronique conforme Factur-X`}</span>
+        <span>{footerContent || `Document généré par M7Sept • Facture électronique conforme Factur-X`}</span>
         <span>Page {pageNum} / {totalPages}</span>
       </div>
     </div>
@@ -1069,7 +1069,7 @@ export default function InvoiceEditorPage() {
         yPos += pageH;
       }
 
-      pdf.save(`Facture-${invoiceNumber || "LE BELVEDERE"}.pdf`);
+      pdf.save(`Facture-${invoiceNumber || "M7Sept"}.pdf`);
     } catch (err) {
       console.error("PDF error, fallback to print:", err);
       window.print();
@@ -1179,19 +1179,19 @@ export default function InvoiceEditorPage() {
           {/* Infos facture + Logo */}
           <div className="grid grid-cols-4 gap-3 items-end">
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">N° Facture</Label>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>N° Facture</span>
               <Input value={invoiceNumber} onChange={e=>setInvoiceNumber(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Date émission</Label>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Date émission</span>
               <Input type="date" value={issueDate} onChange={e=>setIssueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Date échéance</Label>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Date échéance</span>
               <Input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Logo</Label>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Logo</span>
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" className="h-8 text-xs flex-1"
                   onClick={() => { const i=document.createElement("input"); i.type="file"; i.accept="image/*";
@@ -1212,16 +1212,16 @@ export default function InvoiceEditorPage() {
 
           {/* Vendeur / Acheteur */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Vos coordonnées</Label>
-              <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
+            <div className="space-y-0">
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Vos coordonnées</span>
+              <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
                 <RichTextArea value={sellerInfo} onChange={setSellerInfo}
                   placeholder={"Nom / Raison sociale\nAdresse\nSIRET : \nTVA : "} rows={4} />
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Client</Label>
-              <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
+            <div className="space-y-0">
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Client</span>
+              <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
                 <RichTextArea value={buyerInfo} onChange={setBuyerInfo}
                   placeholder={"Nom du client\nAdresse\nSIRET : "} rows={4} />
               </div>
@@ -1229,9 +1229,9 @@ export default function InvoiceEditorPage() {
           </div>
 
           {/* Titre */}
-          <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Titre de la prestation</Label>
-            <div className="border border-border/60 rounded-lg p-3 bg-muted/20">
+          <div className="space-y-0">
+            <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Titre de la prestation</span>
+            <div className="border border-border/60 rounded-b-lg rounded-t-none p-3 bg-muted/20">
               <RichTextArea value={title} onChange={setTitle}
                 placeholder="Ex: Prestation VTC mensuelle — Janvier 2026" rows={2} />
             </div>
@@ -1240,7 +1240,7 @@ export default function InvoiceEditorPage() {
           {/* ── TABLEAU LIGNES ──────────────────────────────────────────────── */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase tracking-wider text-primary font-semibold">Lignes</Label>
+              <span className="inline-block px-3 py-1 text-[10px] uppercase tracking-wider font-semibold text-white rounded-t-lg rounded-b-none" style={{ backgroundColor: "#cbc1fb" }}>Lignes</span>
               <div className="flex items-center gap-2">
 
                 {/* Menu colonnes */}
@@ -1471,9 +1471,10 @@ export default function InvoiceEditorPage() {
             {/* ── Bouton ajouter bloc — couleur adoucie ── */}
             <div className="relative">
               <button
-                className="w-full h-9 text-xs rounded-lg border border-dashed border-border/70
-                           text-muted-foreground hover:text-foreground hover:border-border
-                           hover:bg-muted/30 transition-all flex items-center justify-center gap-2"
+                className="w-full h-9 text-xs rounded-lg border-0 font-semibold
+                           text-white hover:opacity-90
+                           transition-all flex items-center justify-center gap-2"
+                style={{ backgroundColor: "#cbc1fb" }}
                 onClick={()=>setShowBlockMenu(!showBlockMenu)}>
                 <Plus className="h-3.5 w-3.5"/>Ajouter un bloc
               </button>
