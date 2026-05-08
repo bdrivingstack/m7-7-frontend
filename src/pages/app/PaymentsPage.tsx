@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useDemo } from "@/contexts/DemoContext";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +35,76 @@ const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transiti
 type StatusFilter = "all" | PaymentStatus;
 
 export default function PaymentsPage() {
+  const navigate = useNavigate();
+  const demo     = useDemo();
+  const isDemo   = !!demo?.isDemo;
+  const prefix   = isDemo ? "/demo" : "/app";
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    if (isDemo) {
+      toast({ title: "Synchronisation simulée", description: "Mode démo : aucune banque réelle n'est connectée." });
+      return;
+    }
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/payments/sync", { method: "POST", credentials: "include" });
+      if (res.ok) {
+        toast({ title: "Synchronisation réussie", description: "Les comptes ont été mis à jour." });
+      } else {
+        toast({ title: "Erreur de synchronisation", description: "Impossible de contacter les banques.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleExport = () => {
+    const rows = [
+      ["Référence", "Client", "Description", "Date", "Moyen", "Montant", "Frais", "Statut"],
+      ...filtered.map((p: any) => [
+        p.reference, p.client, p.description,
+        new Date(p.date).toLocaleDateString("fr-FR"),
+        p.method, p.amount, p.fees ?? 0, p.status,
+      ]),
+    ];
+    const csv  = rows.map(r => r.map(String).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const a    = document.createElement("a");
+    a.href     = URL.createObjectURL(blob);
+    a.download = `paiements_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast({ title: "Export réussi", description: `${filtered.length} paiements exportés.` });
+  };
+
+  const handleCopyRef = (ref: string) => {
+    navigator.clipboard.writeText(ref).then(() => {
+      toast({ title: "Référence copiée", description: ref });
+    });
+  };
+
+  const handleRelancer = async (p: any) => {
+    if (isDemo) {
+      toast({ title: "Relance simulée", description: `Mode démo : ${p.reference} n'est pas réellement relancé.` });
+      return;
+    }
+    try {
+      const res = await fetch(`/api/payments/${p.id}/retry`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        toast({ title: "Paiement relancé", description: `${p.reference} a été relancé.` });
+      } else {
+        toast({ title: "Erreur", description: "Impossible de relancer ce paiement.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
+    }
+  };
 
   const filtered = payments.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
@@ -69,9 +138,14 @@ export default function PaymentsPage() {
           <p className="text-sm text-muted-foreground">Encaissements, virements et gestion des comptes</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm"><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Synchroniser</Button>
-          <Button variant="outline" size="sm"><Download className="h-3.5 w-3.5 mr-1.5" />Exporter</Button>
-          <Button size="sm" className="gradient-primary text-primary-foreground">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />Synchroniser
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV
+          </Button>
+          <Button size="sm" className="gradient-primary text-primary-foreground"
+            onClick={() => navigate(`${prefix}/sales/invoices/new`)}>
             <CreditCard className="h-3.5 w-3.5 mr-1.5" />Enregistrer un paiement
           </Button>
         </div>
@@ -191,7 +265,8 @@ export default function PaymentsPage() {
                     <span className="text-muted-foreground"> — {p.client} · {p.description} · </span>
                     <span className="font-semibold">{fmtEUR(p.amount)}</span>
                   </div>
-                  <Button size="sm" variant="outline" className="text-xs h-7 border-destructive/40 text-destructive">
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-destructive/40 text-destructive"
+                    onClick={() => handleRelancer(p)}>
                     Relancer
                   </Button>
                 </div>
@@ -302,19 +377,31 @@ export default function PaymentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="text-xs">
-                                <DropdownMenuItem><Eye className="h-3 w-3 mr-2" />Voir les détails</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`${prefix}/payments`)}>
+                                  <Eye className="h-3 w-3 mr-2" />Voir les détails
+                                </DropdownMenuItem>
                                 {p.invoiceNumber && (
-                                  <DropdownMenuItem><FileText className="h-3 w-3 mr-2" />Voir la facture</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => navigate(`${prefix}/sales/invoices`)}>
+                                    <FileText className="h-3 w-3 mr-2" />Voir la facture
+                                  </DropdownMenuItem>
                                 )}
                                 {p.stripeId && (
-                                  <DropdownMenuItem><ExternalLink className="h-3 w-3 mr-2" />Voir sur Stripe</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => window.open(`https://dashboard.stripe.com/payments/${p.stripeId}`, "_blank")}>
+                                    <ExternalLink className="h-3 w-3 mr-2" />Voir sur Stripe
+                                  </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem><Copy className="h-3 w-3 mr-2" />Copier la référence</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleCopyRef(p.reference)}>
+                                  <Copy className="h-3 w-3 mr-2" />Copier la référence
+                                </DropdownMenuItem>
                                 {p.status === "completed" && (
-                                  <DropdownMenuItem><Download className="h-3 w-3 mr-2" />Reçu PDF</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => window.open(`/api/payments/${p.id}/receipt`, "_blank")}>
+                                    <Download className="h-3 w-3 mr-2" />Reçu PDF
+                                  </DropdownMenuItem>
                                 )}
                                 {p.status === "failed" && (
-                                  <DropdownMenuItem className="text-warning"><RefreshCw className="h-3 w-3 mr-2" />Relancer</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-warning" onClick={() => handleRelancer(p)}>
+                                    <RefreshCw className="h-3 w-3 mr-2" />Relancer
+                                  </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
                             </DropdownMenu>

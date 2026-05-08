@@ -213,7 +213,7 @@ export default function ReportsPage() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-3.5 w-3.5 mr-1.5" />Exporter PDF</Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV</Button>
           <Button size="sm" className="gradient-primary text-primary-foreground" onClick={() => window.location.reload()}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />Actualiser
           </Button>

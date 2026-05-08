@@ -54,11 +54,13 @@ export default function LoginPage() {
     if (!emailValid)         { setError("Format d'email invalide."); return; }
     setLoading(true); setError("");
     try {
-      const res  = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/login", {
         method:"POST", headers:{"Content-Type":"application/json"},
         credentials:"include",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
+      const ct = res.headers.get("content-type");
+      if (!ct?.includes("application/json")) throw new TypeError("Failed to fetch");
       const data = await res.json();
       if (!res.ok) {
         const na = attempts + 1; setAttempts(na);

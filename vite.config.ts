@@ -3,6 +3,14 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
+const apiProxy = {
+  "/api": {
+    target: "http://localhost:4000",
+    changeOrigin: true,
+    secure: false,
+  },
+};
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -10,14 +18,11 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    proxy: {
-      // Toutes les requêtes /api/* → backend Express sur :4000
-      "/api": {
-        target: "http://localhost:4000",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    proxy: apiProxy,
+  },
+  preview: {
+    port: 4173,
+    proxy: apiProxy,
   },
   plugins: [react()],
   resolve: {

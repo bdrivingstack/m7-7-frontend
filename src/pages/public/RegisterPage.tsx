@@ -74,10 +74,14 @@ export default function RegisterPage() {
     if (!cgu)              { setError("Vous devez accepter les conditions générales."); return; }
     setLoading(true);
     try {
-      const res  = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/register", {
         method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include",
         body: JSON.stringify({ firstName:firstName.trim(), lastName:lastName.trim(), company:company.trim(), email:email.trim().toLowerCase(), password }),
       });
+      const ct = res.headers.get("content-type");
+      if (!ct?.includes("application/json")) {
+        throw new TypeError("Failed to fetch");
+      }
       const data = await res.json();
       if (!res.ok) { setError(parseApiError(data)); return; }
       setSuccess("Compte créé ! Vérifiez votre boîte mail pour activer votre compte.");
