@@ -77,6 +77,7 @@ import AdminCompliancePage from "@/pages/admin/AdminCompliancePage";
 import AdminEInvoicingPage from "@/pages/admin/AdminEInvoicingPage";
 import AdminMonitoringPage from "@/pages/admin/AdminMonitoringPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
+import AdminPromotionsPage from "@/pages/admin/AdminPromotionsPage";
 
 // Settings
 import SettingsLayout from "@/pages/app/settings/SettingsLayout";
@@ -306,6 +307,7 @@ const App = () => (
               <Route path="compliance"        element={<AdminCompliancePage />} />
               <Route path="e-invoicing"       element={<AdminEInvoicingPage />} />
               <Route path="monitoring"        element={<AdminMonitoringPage />} />
+              <Route path="promotions"        element={<AdminPromotionsPage />} />
               <Route path="settings"          element={<AdminSettingsPage />} />
             </Route>
 

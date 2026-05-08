@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Building2, Users, CreditCard, HeadphonesIcon,
   AlertTriangle, FileSearch, Plug, Flag, Bot, Shield, Scale,
-  Zap, Activity, Settings, Receipt,
+  Zap, Activity, Settings, Receipt, Tag,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -27,6 +27,7 @@ const adminNav = [
   { title: "Conformité", url: "/admin/compliance", icon: Scale },
   { title: "E-Facture", url: "/admin/e-invoicing", icon: Zap },
   { title: "Monitoring", url: "/admin/monitoring", icon: Activity },
+  { title: "Promotions", url: "/admin/promotions", icon: Tag },
   { title: "Paramètres", url: "/admin/settings", icon: Settings },
 ];
 

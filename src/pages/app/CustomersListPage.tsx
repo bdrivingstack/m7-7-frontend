@@ -20,8 +20,9 @@ import { useApi } from "@/hooks/useApi";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useDemo } from "@/contexts/DemoContext";
 
-// Fallback mock data si API indisponible
+// Mock data — utilisé uniquement en mode /demo/*
 import {
   customers as mockCustomers, statusConfig, riskConfig, fmtEUR,
   type CustomerStatus, type RiskScore,
@@ -30,7 +31,9 @@ import {
 type StatusFilter = "all" | CustomerStatus;
 
 export default function CustomersListPage() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const demo      = useDemo();
+  const isDemo    = !!demo?.isDemo;
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [riskFilter,   setRiskFilter]   = useState<"all" | RiskScore>("all");
@@ -39,16 +42,19 @@ export default function CustomersListPage() {
   const [newCustomer,  setNewCustomer]  = useState({ name: "", email: "", phone: "", address: "", siret: "" });
   const [saving,       setSaving]       = useState(false);
 
-  // ── API ────────────────────────────────────────────────────────────────────
+  // ── API (ignorée en mode démo) ─────────────────────────────────────────────
   const queryParams = new URLSearchParams({
     page: String(page), limit: "20",
     ...(search       ? { search }               : {}),
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
     ...(riskFilter   !== "all" ? { risk: riskFilter }     : {}),
   });
-  const { data: apiData, loading, error, refetch } = useApi<any>(`/api/customers?${queryParams}`);
+  const { data: apiData, loading, refetch } = useApi<any>(`/api/customers?${queryParams}`, { skip: isDemo });
 
-  const customers = apiData?.data ?? apiData?.customers ?? mockCustomers;
+  // /demo/* → données mock · /app/* → API uniquement (jamais de fallback mock)
+  const customers = isDemo
+    ? mockCustomers
+    : (apiData?.data ?? apiData?.customers ?? []);
   const total     = apiData?.total ?? customers.length;
 
   const filtered = !apiData
@@ -111,19 +117,25 @@ export default function CustomersListPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        toast({ title: "Client créé", description: `${newCustomer.name} a été ajouté.` });
+        toast({ title: "Client créé", description: `${newCustomer.name} a été ajouté avec succès.` });
         setShowNewModal(false);
         setNewCustomer({ name: "", email: "", phone: "", address: "", siret: "" });
         refetch();
         if (data?.id) navigate(`/app/customers/${data.id}`);
       } else {
-        // En mode démo : juste fermer et notifier
-        toast({ title: "Client créé (démo)", description: `${newCustomer.name} serait créé en production.` });
-        setShowNewModal(false);
-        setNewCustomer({ name: "", email: "", phone: "", address: "", siret: "" });
+        const errData = await res.json().catch(() => ({}));
+        toast({
+          title: "Erreur lors de la création",
+          description: errData.message ?? "Impossible de créer le client. Vérifiez les informations saisies.",
+          variant: "destructive",
+        });
       }
     } catch {
-      toast({ title: "Client créé (démo)", description: `${newCustomer.name} serait créé en production.` });
+      toast({
+        title: "Erreur réseau",
+        description: "Impossible de contacter le serveur. Vérifiez votre connexion.",
+        variant: "destructive",
+      });
       setShowNewModal(false);
     } finally {
       setSaving(false);
@@ -149,7 +161,6 @@ export default function CustomersListPage() {
           <h1 className="text-2xl font-display font-bold">Clients</h1>
           <p className="text-sm text-muted-foreground">
             Gérez vos clients et suivez leur activité
-            {!apiData && !loading && <span className="ml-2 text-warning text-xs">(données de démo)</span>}
           </p>
         </div>
         <div className="flex gap-2">

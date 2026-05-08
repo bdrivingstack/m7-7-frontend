@@ -19,13 +19,21 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { useDemo } from "@/contexts/DemoContext";
+import { useApi } from "@/hooks/useApi";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
 export default function CustomerDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const customer = customers.find((c) => c.id === id);
+  const { id }  = useParams<{ id: string }>();
+  const demo    = useDemo();
+  const isDemo  = !!demo?.isDemo;
+
+  // En mode réel, charger depuis l'API ; en démo, utiliser les données mock
+  const { data: apiCustomer } = useApi<any>(`/api/customers/${id}`, { skip: isDemo });
+  const mockMatch = customers.find((c) => c.id === id);
+  const customer  = isDemo ? mockMatch : (apiCustomer?.data ?? apiCustomer ?? mockMatch);
 
   // ── État URSSAF / Avance immédiate crédit d'impôt ─────────────────────────
   const [urssafEnabled, setUrssafEnabled] = useState<boolean>(
@@ -50,10 +58,17 @@ export default function CustomerDetailPage() {
             : "Ce client ne bénéficiera plus de l'avance immédiate.",
         });
       } else {
-        toast({ title: enabled ? "Activé (démo)" : "Désactivé (démo)", description: "Sera sauvegardé en production." });
+        const errData = await res.json().catch(() => ({}));
+        toast({
+          title: "Erreur",
+          description: errData.message ?? "Impossible de mettre à jour le paramètre URSSAF.",
+          variant: "destructive",
+        });
+        setUrssafEnabled(!enabled); // Revert
       }
     } catch {
-      toast({ title: enabled ? "Activé (démo)" : "Désactivé (démo)", description: "Sera sauvegardé en production." });
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
+      setUrssafEnabled(!enabled); // Revert
     } finally {
       setUrssafSaving(false);
     }

@@ -14,8 +14,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useDemo(): DemoContextValue {
-  const ctx = useContext(DemoContext);
-  if (!ctx) throw new Error("useDemo must be used inside <DemoProvider>");
-  return ctx;
+// Retourne null hors DemoProvider (/app/*, /admin/*) → mode réel
+// Retourne { isDemo: true } dans /demo/* → mode démo
+export function useDemo() {
+  return useContext(DemoContext);
 }

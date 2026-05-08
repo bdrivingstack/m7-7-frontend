@@ -16,11 +16,14 @@ import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { InfoTooltip, DASHBOARD_TOOLTIPS } from "@/components/ui/InfoTooltip";
 import { invoices as mockInvoices, invoiceStatusConfig, fmtEUR, type InvoiceStatus } from "@/lib/sales-data";
+import { useDemo } from "@/contexts/DemoContext";
 
 type StatusFilter = "all" | InvoiceStatus;
 
 export default function InvoicesListPage() {
   const navigate = useNavigate();
+  const demo     = useDemo();
+  const isDemo   = !!demo?.isDemo;
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search,       setSearch]       = useState("");
   const [page,         setPage]         = useState(1);
@@ -30,9 +33,12 @@ export default function InvoicesListPage() {
     ...(statusFilter !== "all" ? { status: statusFilter } : {}),
     ...(search ? { search } : {}),
   });
-  const { data: apiData, loading, refetch } = useApi<any>(`/api/invoices?${queryParams}`);
+  const { data: apiData, loading, refetch } = useApi<any>(`/api/invoices?${queryParams}`, { skip: isDemo });
 
-  const invoices = apiData?.data ?? apiData?.invoices ?? mockInvoices;
+  // /demo/* → données mock · /app/* → API uniquement
+  const invoices = isDemo
+    ? mockInvoices
+    : (apiData?.data ?? apiData?.invoices ?? []);
   const total    = apiData?.total ?? invoices.length;
 
   const filtered = !apiData
@@ -81,12 +87,21 @@ export default function InvoicesListPage() {
   };
 
   const handleSend = async (inv: any) => {
+    if (isDemo) {
+      toast({ title: "Envoi simulé", description: `Mode démo : ${inv.number} n'est pas réellement envoyée.` });
+      return;
+    }
     try {
       const res = await fetch(`/api/invoices/${inv.id}/send`, { method: "POST", credentials: "include" });
-      if (res.ok) { toast({ title: "Facture envoyée", description: `${inv.number} envoyée.` }); refetch(); }
-      else toast({ title: "Envoi simulé (démo)", description: `${inv.number} serait envoyée en production.` });
+      if (res.ok) {
+        toast({ title: "Facture envoyée", description: `${inv.number} a été envoyée au client.` });
+        refetch();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast({ title: "Erreur d'envoi", description: errData.message ?? "Impossible d'envoyer la facture.", variant: "destructive" });
+      }
     } catch {
-      toast({ title: "Envoi simulé (démo)", description: `${inv.number} serait envoyée en production.` });
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
     }
   };
 
@@ -104,7 +119,6 @@ export default function InvoicesListPage() {
           <h1 className="text-2xl font-display font-bold">Factures</h1>
           <p className="text-sm text-muted-foreground">
             Gérez vos factures, suivez les paiements
-            {!apiData && !loading && <span className="ml-2 text-warning text-xs">(données de démo)</span>}
           </p>
         </div>
         <div className="flex gap-2">

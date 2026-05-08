@@ -163,15 +163,27 @@ export default function PricingPage() {
                       {plan.monthlyPrice === null ? (
                         <span className="text-2xl font-display font-bold">Sur mesure</span>
                       ) : (
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-4xl font-display font-bold">
-                            {yearly ? plan.yearlyPrice : plan.monthlyPrice}€
-                          </span>
-                          <span className="text-xs text-muted-foreground">/mois</span>
-                        </div>
-                      )}
-                      {yearly && plan.monthlyPrice && (
-                        <p className="text-xs text-muted-foreground line-through mt-0.5">{plan.monthlyPrice}€/mois</p>
+                        <>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-4xl font-display font-bold">
+                              {yearly ? plan.yearlyPrice : plan.monthlyPrice}€
+                            </span>
+                            <span className="text-xs text-muted-foreground">/mois</span>
+                          </div>
+                          {yearly && plan.yearlyPrice && plan.monthlyPrice ? (
+                            <div className="mt-1 space-y-0.5">
+                              <p className="text-xs text-muted-foreground line-through">{plan.monthlyPrice}€/mois</p>
+                              <p className="text-xs font-medium text-foreground">
+                                Facturé {plan.yearlyPrice * 12}€/an
+                              </p>
+                              <p className="text-xs text-success font-medium">
+                                Économisez {(plan.monthlyPrice - plan.yearlyPrice) * 12}€/an
+                              </p>
+                            </div>
+                          ) : !yearly ? (
+                            <p className="text-xs text-muted-foreground mt-1">Facturé mensuellement</p>
+                          ) : null}
+                        </>
                       )}
                     </div>
                     <div className="space-y-2.5 mb-6 flex-1">
