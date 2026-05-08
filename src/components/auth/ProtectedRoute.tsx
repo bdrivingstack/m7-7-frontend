@@ -1,12 +1,14 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import type { AuthUser } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // 🔓 MODE DÉMO — décommente le bloc ci-dessous pour réactiver l'auth
-  return <>{children}</>;
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRoles?: AuthUser["role"][];
+}
 
-  /* AUTH — à réactiver en production
+export default function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -22,6 +24,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
+  if (requiredRoles && !requiredRoles.includes(user.role)) {
+    return <Navigate to="/app/dashboard" replace />;
+  }
+
   return <>{children}</>;
-  */
 }

@@ -44,7 +44,7 @@ export default function PublicLayout() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link to="/app/dashboard">
+            <Link to="/demo/dashboard">
               <Button variant="outline" size="sm">👀 Démo</Button>
             </Link>
             <Link to="/login">
@@ -88,9 +88,10 @@ export default function PublicLayout() {
           <div>
             <h4 className="font-display font-semibold text-sm mb-3">Légal</h4>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <a href="#" className="block hover:text-foreground">CGU</a>
-              <a href="#" className="block hover:text-foreground">Confidentialité</a>
-              <a href="#" className="block hover:text-foreground">Mentions légales</a>
+              <Link to="/terms" className="block hover:text-foreground">CGU</Link>
+              <Link to="/privacy" className="block hover:text-foreground">Confidentialité</Link>
+              <Link to="/legal" className="block hover:text-foreground">Mentions légales</Link>
+              <Link to="/contact" className="block hover:text-foreground">Contact</Link>
             </div>
           </div>
         </div>

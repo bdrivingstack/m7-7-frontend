@@ -16,7 +16,10 @@ export default function PortalLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const handleLogout = () => navigate("/portal/login");
+  const handleLogout = () => {
+    sessionStorage.removeItem("portal_authenticated");
+    navigate("/portal/login");
+  };
   return (
     <div className="min-h-screen bg-muted/20 flex flex-col">
       <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-30">
@@ -64,7 +67,7 @@ export default function PortalLayout() {
         <span className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><Shield className="h-3 w-3"/>TLS 1.3</span>
           <span>·</span><span>Session expire après 8h</span>
-          <span>·</span><a href="#" className="hover:underline">Confidentialité</a>
+          <span>·</span><a href="/privacy" className="hover:underline">Confidentialité</a>
         </span>
       </footer>
     </div>

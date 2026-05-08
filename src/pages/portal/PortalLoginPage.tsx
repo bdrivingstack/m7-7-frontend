@@ -81,6 +81,7 @@ export default function PortalLoginPage() {
 
     // Simule validation TOTP — en prod : otplib.authenticator.verify({ token, secret })
     if (otp === "123456" || otp === "000000") {
+      sessionStorage.setItem("portal_authenticated", "true");
       setStep("success");
       setTimeout(() => navigate("/portal"), 1200);
     } else {
