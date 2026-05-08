@@ -13,12 +13,16 @@ interface FetchOptions extends RequestInit {
   skip?: boolean;
 }
 
+// ─── Base URL API (vide en dev = proxy Vite, URL complète en prod) ───────────
+export const API_BASE: string = (import.meta.env.VITE_API_BASE_URL as string) ?? "";
+
 // ─── Utilitaire fetch authentifié ─────────────────────────────────────────────
 
 export async function apiFetch<T = unknown>(
-  url:     string,
+  path:    string,
   options: RequestInit = {}
 ): Promise<T> {
+  const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
     ...options,
     credentials: "include",
@@ -29,9 +33,15 @@ export async function apiFetch<T = unknown>(
   });
 
   if (res.status === 401) {
-    // Redirige vers login si session expirée
     window.location.href = "/login";
     throw new Error("Session expirée");
+  }
+
+  const ct = res.headers.get("content-type");
+  if (!ct?.includes("application/json")) {
+    const text = await res.text().catch(() => "");
+    console.error(`[API] Réponse non-JSON (${res.status}) :`, text.slice(0, 150));
+    throw new Error("Impossible de joindre le serveur.");
   }
 
   const data = await res.json();

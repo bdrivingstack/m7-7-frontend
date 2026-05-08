@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EMAIL_REGEX, PASSWORD_RULES, parseApiError } from "@/lib/auth-validation";
+import { API_BASE } from "@/hooks/useApi";
 
 function ErrorBox({ message }: { message: string }) {
   if (!message) return null;
@@ -74,7 +75,7 @@ export default function RegisterPage() {
     if (!cgu)              { setError("Vous devez accepter les conditions générales."); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method:"POST", headers:{"Content-Type":"application/json"}, credentials:"include",
         body: JSON.stringify({ firstName:firstName.trim(), lastName:lastName.trim(), company:company.trim(), email:email.trim().toLowerCase(), password }),
       });

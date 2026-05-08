@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { EMAIL_REGEX, parseApiError, API_ERROR_MESSAGES } from "@/lib/auth-validation";
+import { API_BASE } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 
 const MAX_ATTEMPTS     = 5;
@@ -54,7 +55,7 @@ export default function LoginPage() {
     if (!emailValid)         { setError("Format d'email invalide."); return; }
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         credentials:"include",
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
@@ -90,10 +91,12 @@ export default function LoginPage() {
     if (loading || otp.length !== OTP_LENGTH) return;
     setLoading(true); setError("");
     try {
-      const res  = await fetch("/api/auth/2fa/verify", {
+      const res = await fetch(`${API_BASE}/api/auth/2fa/verify`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         credentials:"include", body: JSON.stringify({ code: otp }),
       });
+      const ct2 = res.headers.get("content-type");
+      if (!ct2?.includes("application/json")) throw new TypeError("Failed to fetch");
       const data = await res.json();
       if (!res.ok) { setOtp(""); setError(parseApiError(data)); otpRef.current?.focus(); return; }
       setStep("success");

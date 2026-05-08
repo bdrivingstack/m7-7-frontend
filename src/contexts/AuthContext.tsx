@@ -2,6 +2,7 @@ import {
   createContext, useContext, useEffect, useState, useCallback,
   type ReactNode,
 } from "react";
+import { API_BASE } from "@/hooks/useApi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchMe = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       });
@@ -52,6 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!res.ok) {
         throw new Error(`Erreur serveur (${res.status})`);
+      }
+
+      const ct = res.headers.get("content-type");
+      if (!ct?.includes("application/json")) {
+        throw new Error("Serveur inaccessible");
       }
 
       const data = await res.json();
@@ -66,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetch(`${API_BASE}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
