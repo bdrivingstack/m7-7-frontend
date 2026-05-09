@@ -29,6 +29,7 @@ import EInvoicingPage from "@/pages/public/EInvoicingPage";
 import HelpPage from "@/pages/public/HelpPage";
 import DocsPage from "@/pages/public/DocsPage";
 import ForgotPasswordPage from "@/pages/public/ForgotPasswordPage";
+import VerifyEmailPage from "@/pages/public/VerifyEmailPage";
 import PrivacyPage from "@/pages/public/PrivacyPage";
 import TermsPage from "@/pages/public/TermsPage";
 import LegalPage from "@/pages/public/LegalPage";
@@ -168,6 +169,7 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
             {/* ── Mode Démo — sans connexion, données fictives ──────────────── */}
             <Route path="/demo" element={<DemoLayout />}>
