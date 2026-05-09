@@ -68,7 +68,8 @@ export default function LoginPage() {
       if (!res.ok) {
         if (data.code === "ACCOUNT_NOT_VERIFIED") {
           setNotVerified(true);
-          setError(API_ERROR_MESSAGES.ACCOUNT_NOT_VERIFIED);
+          const rem = MAX_ATTEMPTS - attempts;
+          setError(`${API_ERROR_MESSAGES.ACCOUNT_NOT_VERIFIED} (${rem} tentative${rem > 1 ? "s" : ""} restante${rem > 1 ? "s" : ""})`);
           return;
         }
         const na = attempts + 1; setAttempts(na);
