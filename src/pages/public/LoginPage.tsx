@@ -40,9 +40,11 @@ export default function LoginPage() {
   const [showPwd,     setShowPwd]     = useState(false);
   const [otp,         setOtp]         = useState("");
   const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState("");
-  const [attempts,    setAttempts]    = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [error,        setError]        = useState("");
+  const [attempts,     setAttempts]     = useState(0);
+  const [lockedUntil,  setLockedUntil]  = useState<number | null>(null);
+  const [notVerified,  setNotVerified]  = useState(false);
+  const [resendState,  setResendState]  = useState<"idle" | "loading" | "sent" | "error">("idle");
   const otpRef = useRef<HTMLInputElement>(null);
 
   const emailValid       = EMAIL_REGEX.test(email);
@@ -53,7 +55,7 @@ export default function LoginPage() {
     if (isLocked || loading) return;
     if (!email || !password) { setError("Veuillez remplir tous les champs."); return; }
     if (!emailValid)         { setError("Format d'email invalide."); return; }
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setNotVerified(false); setResendState("idle");
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method:"POST", headers:{"Content-Type":"application/json"},
@@ -64,6 +66,11 @@ export default function LoginPage() {
       if (!ct?.includes("application/json")) throw new TypeError("Failed to fetch");
       const data = await res.json();
       if (!res.ok) {
+        if (data.code === "ACCOUNT_NOT_VERIFIED") {
+          setNotVerified(true);
+          setError(API_ERROR_MESSAGES.ACCOUNT_NOT_VERIFIED);
+          return;
+        }
         const na = attempts + 1; setAttempts(na);
         if (na >= MAX_ATTEMPTS || data.code === "ACCOUNT_LOCKED") {
           setLockedUntil(Date.now() + LOCK_DURATION_MS);
@@ -106,6 +113,20 @@ export default function LoginPage() {
     finally     { setLoading(false); }
   }, [otp, loading, navigate]);
 
+  const handleResend = useCallback(async () => {
+    if (resendState === "loading") return;
+    setResendState("loading");
+    try {
+      await fetch(`${API_BASE}/api/auth/resend-verification`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      setResendState("sent");
+    } catch {
+      setResendState("error");
+    }
+  }, [email, resendState]);
+
   const onKey = (e: React.KeyboardEvent, fn: () => void) => { if (e.key === "Enter") fn(); };
 
   return (
@@ -136,6 +157,24 @@ export default function LoginPage() {
                     </div>
                   )}
                   <AnimatePresence>{error && !isLocked && <ErrorBox message={error} />}</AnimatePresence>
+                  {notVerified && (
+                    <div className="text-center">
+                      {resendState === "sent" ? (
+                        <p className="text-xs text-success flex items-center justify-center gap-1">
+                          <CheckCircle className="h-3.5 w-3.5" />Email envoyé ! Vérifiez votre boîte mail.
+                        </p>
+                      ) : resendState === "error" ? (
+                        <p className="text-xs text-destructive">Erreur lors de l'envoi. Réessayez.</p>
+                      ) : (
+                        <button type="button" onClick={handleResend} disabled={resendState === "loading"}
+                          className="text-xs text-primary hover:underline disabled:opacity-50 flex items-center gap-1 mx-auto">
+                          {resendState === "loading"
+                            ? <><Loader2 className="h-3 w-3 animate-spin" />Envoi en cours…</>
+                            : "Renvoyer le lien de vérification"}
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <Label htmlFor="email" className="text-xs font-medium">Email professionnel</Label>
