@@ -37,7 +37,7 @@ export default function AuditLogsPage() {
   return (
     <motion.div className="p-6 space-y-6 max-w-4xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
       <div className="flex items-center justify-between">
-        <div><h1 className="text-xl font-display font-bold">Journaux d'audit</h1>
+        <div><h1 className="text-fluid-xl font-display font-bold">Journaux d'audit</h1>
           <p className="text-sm text-muted-foreground">Traçabilité complète de toutes les actions sur votre compte</p>
         </div>
         <Button variant="outline" size="sm" className="text-xs"><Download className="h-3.5 w-3.5 mr-1.5"/>Exporter les logs</Button>

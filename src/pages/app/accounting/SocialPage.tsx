@@ -86,12 +86,12 @@ export default function SocialPage() {
   const progressPct = Math.round((socialContributions.paid / socialContributions.estimated) * 100);
 
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
 
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Cotisations sociales</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Cotisations sociales</h1>
           <p className="text-sm text-muted-foreground">Suivi URSSAF, retraite et prévoyance</p>
         </div>
         <div className="flex gap-2">
@@ -111,7 +111,7 @@ export default function SocialPage() {
               <span className="text-xs text-muted-foreground">Estimé annuel</span>
               <InfoTooltip title="Cotisations sociales estimées" description="Estimation des cotisations sociales dues sur l'année complète, calculée sur la base de votre CA déclaré." formula="CA annuel × taux de cotisations selon votre régime (BNC/BIC services/BIC vente)" benefit="Cette estimation vous permet de provisionner chaque mois la bonne somme pour éviter les mauvaises surprises aux échéances URSSAF." />
             </div>
-            <p className="text-2xl font-display font-bold">{fmt(socialContributions.estimated)}</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmt(socialContributions.estimated)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Taux moyen {socialContributions.rate}%</p>
           </CardContent>
         </Card>
@@ -144,7 +144,7 @@ export default function SocialPage() {
               <span className="text-xs text-muted-foreground">Prochaine échéance</span>
               <InfoTooltip title="Prochaine échéance URSSAF" description="Date limite du prochain versement de cotisations sociales à l'URSSAF." benefit="Notez cette date et assurez-vous d'avoir les fonds disponibles. LE BELVEDERE vous enverra un rappel automatique." />
             </div>
-            <p className="text-xl font-display font-bold">
+            <p className="text-fluid-xl font-display font-bold">
               {new Date(socialContributions.nextDeadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">{socialContributions.period}</p>

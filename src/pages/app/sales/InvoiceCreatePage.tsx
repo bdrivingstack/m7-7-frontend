@@ -48,14 +48,14 @@ export default function InvoiceCreatePage() {
   const total = subtotal + vatTotal;
 
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link to="/app/sales/invoices">
             <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-display font-bold">Nouvelle facture</h1>
+            <h1 className="text-fluid-2xl font-display font-bold">Nouvelle facture</h1>
             <p className="text-sm text-muted-foreground">Créez une facture détaillée</p>
           </div>
         </div>

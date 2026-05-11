@@ -121,10 +121,16 @@
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
+  }
+  html {
+    overflow-x: hidden;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overflow-x: hidden;
+    max-width: 100vw;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
@@ -150,5 +156,33 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* ─── Fluid typography — clamp() responsive ──────────────────────────────── */
+  .text-fluid-xs   { font-size: clamp(0.65rem,  1.8vw, 0.75rem);  }
+  .text-fluid-sm   { font-size: clamp(0.75rem,  2vw,   0.875rem); }
+  .text-fluid-base { font-size: clamp(0.875rem, 2.5vw, 1rem);     }
+  .text-fluid-lg   { font-size: clamp(1rem,     3vw,   1.125rem); }
+  .text-fluid-xl   { font-size: clamp(1.125rem, 3.5vw, 1.25rem);  }
+  .text-fluid-2xl  { font-size: clamp(1.25rem,  4vw,   1.5rem);   }
+  .text-fluid-3xl  { font-size: clamp(1.5rem,   5vw,   1.875rem); }
+  .text-fluid-4xl  { font-size: clamp(1.75rem,  6vw,   2.25rem);  }
+
+  /* ─── Page container — responsive padding ───────────────────────────────── */
+  .page-container {
+    @apply px-3 py-3 sm:px-6 sm:py-6 max-w-full overflow-x-hidden;
+  }
+
+  /* ─── Tableaux — scroll horizontal propre ───────────────────────────────── */
+  .table-scroll {
+    @apply overflow-x-auto -mx-3 sm:-mx-6 px-3 sm:px-6;
+  }
+
+  /* ─── Truncate sécurisé pour éviter débordement ─────────────────────────── */
+  .safe-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
 }

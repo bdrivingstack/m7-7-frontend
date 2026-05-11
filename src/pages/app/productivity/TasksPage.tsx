@@ -53,7 +53,7 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Tâches</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Tâches</h1>
           <p className="text-sm text-muted-foreground">Toutes vos tâches en vue liste</p>
         </div>
         <div className="flex gap-2">
@@ -74,7 +74,7 @@ export default function TasksPage() {
               <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Total</span>
             </div>
-            <p className="text-2xl font-display font-bold">{tasks.length}</p>
+            <p className="text-fluid-2xl font-display font-bold">{tasks.length}</p>
             <p className="text-xs text-muted-foreground">{done} terminées</p>
           </CardContent>
         </Card>
@@ -104,7 +104,7 @@ export default function TasksPage() {
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Heures estimées</span>
             </div>
-            <p className="text-2xl font-display font-bold">{totalHours}h</p>
+            <p className="text-fluid-2xl font-display font-bold">{totalHours}h</p>
             <p className="text-xs text-muted-foreground">{tasks.filter(t => t.timeEstimate).length} tâches</p>
           </CardContent>
         </Card>

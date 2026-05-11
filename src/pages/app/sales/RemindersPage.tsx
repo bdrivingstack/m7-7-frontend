@@ -9,10 +9,10 @@ import { motion } from "framer-motion";
 
 export default function RemindersPage() {
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Relances</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Relances</h1>
           <p className="text-sm text-muted-foreground">Automatisez le suivi de vos impayés</p>
         </div>
         <div className="flex gap-2">

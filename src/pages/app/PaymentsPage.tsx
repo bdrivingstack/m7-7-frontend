@@ -129,12 +129,12 @@ export default function PaymentsPage() {
   const growthPct = Math.round(((currentMonthIn - prevMonthIn) / prevMonthIn) * 100);
 
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
 
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Paiements</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Paiements</h1>
           <p className="text-sm text-muted-foreground">Encaissements, virements et gestion des comptes</p>
         </div>
         <div className="flex gap-2">
@@ -180,7 +180,7 @@ export default function PaymentsPage() {
                   </Button>
                 </div>
                 <div>
-                  <p className="text-2xl font-display font-bold">{fmtEUR(acc.balance)}</p>
+                  <p className="text-fluid-2xl font-display font-bold">{fmtEUR(acc.balance)}</p>
                   {acc.pending > 0 && (
                     <p className="text-xs text-warning mt-0.5">
                       <Clock className="h-3 w-3 inline mr-1" />
@@ -238,7 +238,7 @@ export default function PaymentsPage() {
               <span className="text-xs text-muted-foreground">Frais Stripe/CB</span>
               <InfoTooltip title="Frais bancaires & Stripe" description="Total des commissions prélevées par Stripe et les organismes bancaires sur vos transactions par carte." formula="Σ frais de chaque transaction (généralement 1.4% + 0.25€ pour les cartes EU)" benefit="Ces frais sont déductibles de votre résultat imposable. Pensez à les catégoriser en comptabilité." />
             </div>
-            <p className="text-2xl font-display font-bold">{fmtEUR(totalFees)}</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmtEUR(totalFees)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">~{((totalFees / totalReceived) * 100).toFixed(1)}% du CA encaissé</p>
           </CardContent>
         </Card>

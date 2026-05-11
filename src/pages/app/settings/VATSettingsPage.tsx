@@ -13,7 +13,7 @@ export default function VATSettingsPage() {
   const [regime, setRegime] = useState("reel_normal");
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">Paramètres TVA</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">Paramètres TVA</h1>
         <p className="text-sm text-muted-foreground">Configurez votre régime de TVA et les taux applicables</p>
       </div>
       <Card>

@@ -32,9 +32,10 @@ const adminNav = [
 ];
 
 export function AdminSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const closeMobile = () => { if (isMobile) setOpenMobile(false); };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -62,7 +63,7 @@ export function AdminSidebar() {
                     asChild
                     isActive={item.url === "/admin" ? location.pathname === "/admin" : location.pathname.startsWith(item.url)}
                   >
-                    <NavLink to={item.url} end={item.url === "/admin"}>
+                    <NavLink to={item.url} end={item.url === "/admin"} onClick={closeMobile}>
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>

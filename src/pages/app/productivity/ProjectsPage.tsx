@@ -39,12 +39,12 @@ export default function ProjectsPage() {
   const active = projects.filter(p => p.status === "active").length;
 
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
 
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Projets</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Projets</h1>
           <p className="text-sm text-muted-foreground">Suivez l'avancement et la rentabilité de vos projets</p>
         </div>
         <Button size="sm" className="gradient-primary text-primary-foreground">
@@ -60,7 +60,7 @@ export default function ProjectsPage() {
               <FolderOpen className="h-3.5 w-3.5 text-primary" />
               <span className="text-xs text-muted-foreground">Actifs</span>
             </div>
-            <p className="text-2xl font-display font-bold">{active}</p>
+            <p className="text-fluid-2xl font-display font-bold">{active}</p>
             <p className="text-xs text-muted-foreground">{projects.length} total</p>
           </CardContent>
         </Card>
@@ -80,7 +80,7 @@ export default function ProjectsPage() {
               <Euro className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Budget actif</span>
             </div>
-            <p className="text-2xl font-display font-bold">{fmtEUR(totalBudget)}</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmtEUR(totalBudget)}</p>
             <p className="text-xs text-muted-foreground">{fmtEUR(totalSpent)} consommé</p>
           </CardContent>
         </Card>
@@ -90,7 +90,7 @@ export default function ProjectsPage() {
               <TrendingUp className="h-3.5 w-3.5 text-success" />
               <span className="text-xs text-muted-foreground">Taux consommation</span>
             </div>
-            <p className="text-2xl font-display font-bold">{Math.round((totalSpent / totalBudget) * 100)}%</p>
+            <p className="text-fluid-2xl font-display font-bold">{Math.round((totalSpent / totalBudget) * 100)}%</p>
             <p className="text-xs text-muted-foreground">{fmtEUR(totalBudget - totalSpent)} restant</p>
           </CardContent>
         </Card>

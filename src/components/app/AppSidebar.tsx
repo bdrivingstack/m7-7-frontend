@@ -68,7 +68,9 @@ function NavGroup({
   collapsed: boolean;
 }) {
   const location = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   const isActive = (path: string) => location.pathname.startsWith(path);
+  const closeMobile = () => { if (isMobile) setOpenMobile(false); };
 
   return (
     <SidebarGroup>
@@ -85,7 +87,7 @@ function NavGroup({
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)} size="sm">
-                    <NavLink to={item.url}>
+                    <NavLink to={item.url} onClick={closeMobile}>
                       <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
@@ -103,10 +105,11 @@ function NavGroup({
 // ─── AppSidebar ───────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
+  const closeMobile = () => { if (isMobile) setOpenMobile(false); };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -134,7 +137,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/app/dashboard")}>
-                  <NavLink to="/app/dashboard" end>
+                  <NavLink to="/app/dashboard" end onClick={closeMobile}>
                     <LayoutDashboard className="h-4 w-4" />
                     {!collapsed && <span>Dashboard</span>}
                   </NavLink>
@@ -168,7 +171,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={isActive("/app/settings")}>
-                  <NavLink to="/app/settings/profile">
+                  <NavLink to="/app/settings/profile" onClick={closeMobile}>
                     <Settings className="h-4 w-4" />
                     {!collapsed && <span>Paramètres</span>}
                   </NavLink>

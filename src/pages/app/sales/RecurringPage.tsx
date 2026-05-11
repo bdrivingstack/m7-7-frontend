@@ -74,12 +74,12 @@ export default function RecurringPage() {
   }, 0);
 
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Facturation récurrente</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Facturation récurrente</h1>
           <p className="text-sm text-muted-foreground">Gérez vos modèles de factures automatiques</p>
         </div>
         <Button size="sm" className="gradient-primary text-primary-foreground">
@@ -96,7 +96,7 @@ export default function RecurringPage() {
               <span className="text-xs text-muted-foreground">Modèles actifs</span>
               <InfoTooltip title="Modèles récurrents actifs" description="Nombre de modèles de facturation récurrente en cours d'exécution automatique." benefit="Chaque modèle actif génère des factures automatiquement à la fréquence configurée, sans intervention manuelle." />
             </div>
-            <p className="text-2xl font-display font-bold">{activeCount}</p>
+            <p className="text-fluid-2xl font-display font-bold">{activeCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -106,7 +106,7 @@ export default function RecurringPage() {
               <span className="text-xs text-muted-foreground">MRR récurrent</span>
               <InfoTooltip title="MRR — Monthly Recurring Revenue" description="Revenu mensuel récurrent garanti par vos contrats de facturation automatique actifs." formula="Σ montants mensualisés de tous les modèles actifs" benefit="Le MRR est la base de votre visibilité financière. Plus il est élevé, plus votre trésorerie est prévisible." />
             </div>
-            <p className="text-2xl font-display font-bold">{fmtEUR(mrr)}</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmtEUR(mrr)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -116,7 +116,7 @@ export default function RecurringPage() {
               <span className="text-xs text-muted-foreground">Prochain mois</span>
               <InfoTooltip title="Facturation du mois prochain" description="Montant total qui sera automatiquement facturé le mois prochain si tous les modèles restent actifs." benefit="Anticipez vos encaissements et votre trésorerie en vous basant sur cette projection." />
             </div>
-            <p className="text-2xl font-display font-bold">{fmtEUR(nextMonth)}</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmtEUR(nextMonth)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -126,7 +126,7 @@ export default function RecurringPage() {
               <span className="text-xs text-muted-foreground">Clients concernés</span>
               <InfoTooltip title="Clients avec facturation récurrente" description="Nombre de clients distincts qui ont au moins un modèle de facturation récurrente actif." benefit="Des clients sous contrat récurrent sont plus fidèles et plus prévisibles financièrement." />
             </div>
-            <p className="text-2xl font-display font-bold">
+            <p className="text-fluid-2xl font-display font-bold">
               {new Set(templates.filter((t) => t.status === "active").map((t) => t.client)).size}
             </p>
           </CardContent>

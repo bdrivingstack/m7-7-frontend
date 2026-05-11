@@ -90,7 +90,7 @@ export default function CustomerDetailPage() {
   const pt = paymentTermsConfig[customer.paymentTerms];
 
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
 
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -105,7 +105,7 @@ export default function CustomerDetailPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-display font-bold">{customer.name}</h1>
+              <h1 className="text-fluid-2xl font-display font-bold">{customer.name}</h1>
               <Badge variant="secondary" className={`text-[10px] ${sc.color}`}>{sc.label}</Badge>
               <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${rc.bg} ${rc.color}`}>{rc.label}</span>
             </div>
@@ -197,7 +197,7 @@ export default function CustomerDetailPage() {
               <span className="text-xs text-muted-foreground">CA total</span>
               <InfoTooltip title="CA total client" description="Chiffre d'affaires cumulé généré par ce client depuis le début de la relation commerciale." formula="Σ montants HT de toutes les factures payées de ce client" benefit="Identifier vos clients les plus rentables pour prioriser votre relation commerciale." />
             </div>
-            <p className="text-xl font-display font-bold">{fmtEUR(customer.totalRevenue)}</p>
+            <p className="text-fluid-xl font-display font-bold">{fmtEUR(customer.totalRevenue)}</p>
             <p className="text-xs text-muted-foreground">{customer.totalInvoices} factures</p>
           </CardContent>
         </Card>

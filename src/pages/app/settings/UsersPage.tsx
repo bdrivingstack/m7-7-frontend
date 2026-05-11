@@ -70,7 +70,7 @@ export default function UsersPage() {
     <motion.div className="p-6 space-y-6 max-w-4xl" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-display font-bold">Utilisateurs</h1>
+          <h1 className="text-fluid-xl font-display font-bold">Utilisateurs</h1>
           <p className="text-sm text-muted-foreground">Gérez les accès et rôles de votre équipe</p>
         </div>
         <Button size="sm" className="gradient-primary text-primary-foreground">
@@ -82,7 +82,7 @@ export default function UsersPage() {
       <div className="grid grid-cols-3 gap-3">
         <Card><CardContent className="p-4">
           <p className="text-xs text-muted-foreground mb-1">Actifs</p>
-          <p className="text-2xl font-display font-bold">{users.filter(u => u.status === "active").length}</p>
+          <p className="text-fluid-2xl font-display font-bold">{users.filter(u => u.status === "active").length}</p>
           <p className="text-xs text-muted-foreground">/ 10 max (Plan Pro)</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">

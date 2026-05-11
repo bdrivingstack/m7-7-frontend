@@ -13,7 +13,7 @@ export default function EmailPage() {
   const [signature, setSignature] = useState("Cordialement,\n\nJean Dupont\nMon Entreprise SAS\n+33 6 12 34 56 78");
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">Configuration email</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">Configuration email</h1>
         <p className="text-sm text-muted-foreground">Paramétrez l'envoi de vos factures, devis et relances</p>
       </div>
       <Card>

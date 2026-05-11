@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 export default function EInvoicingSalesPage() {
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-2xl font-display font-bold">E-Facture</h1><p className="text-sm text-muted-foreground">Conformité à la réforme française de facturation électronique 2026</p></div>
+      <div><h1 className="text-fluid-2xl font-display font-bold">E-Facture</h1><p className="text-sm text-muted-foreground">Conformité à la réforme française de facturation électronique 2026</p></div>
       <Card className="border-success/30 bg-success/5"><CardContent className="p-4 flex items-center gap-3">
         <CheckCircle className="h-5 w-5 text-success flex-shrink-0"/>
         <div><p className="font-semibold text-sm text-success">Votre compte est conforme e-facture</p><p className="text-xs text-muted-foreground">Factur-X activé · Chorus Pro configuré · Peppol disponible</p></div>

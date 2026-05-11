@@ -27,10 +27,10 @@ const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transiti
 
 export default function AccountingOverviewPage() {
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Comptabilité</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Comptabilité</h1>
           <p className="text-sm text-muted-foreground">Vue générale de votre comptabilité simplifiée</p>
         </div>
         <div className="flex gap-2">

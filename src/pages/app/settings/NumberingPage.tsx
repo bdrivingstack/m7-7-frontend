@@ -15,7 +15,7 @@ export default function NumberingPage() {
   const [configs, setConfigs] = useState(types);
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">Numérotation</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">Numérotation</h1>
         <p className="text-sm text-muted-foreground">Configurez le format des numéros de vos documents</p>
       </div>
       <div className="p-3 rounded-lg bg-warning/5 border border-warning/20 text-xs text-muted-foreground flex items-start gap-2">

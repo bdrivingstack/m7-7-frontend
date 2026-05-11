@@ -69,12 +69,12 @@ export default function PaymentLinksPage() {
   };
 
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Liens de paiement</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Liens de paiement</h1>
           <p className="text-sm text-muted-foreground">Encaissez en partageant un lien sécurisé</p>
         </div>
         <Button size="sm" className="gradient-primary text-primary-foreground">
@@ -91,7 +91,7 @@ export default function PaymentLinksPage() {
               <span className="text-xs text-muted-foreground">Liens actifs</span>
               <InfoTooltip title="Liens de paiement actifs" description="Nombre de liens de paiement actuellement actifs et non expirés, en attente d'être réglés par vos clients." benefit="Chaque lien actif représente une opportunité d'encaissement. Relancez les clients qui n'ont pas encore payé." />
             </div>
-            <p className="text-2xl font-display font-bold">
+            <p className="text-fluid-2xl font-display font-bold">
               {paymentLinks.filter((l) => l.status === "active").length}
             </p>
           </CardContent>
@@ -123,7 +123,7 @@ export default function PaymentLinksPage() {
               <span className="text-xs text-muted-foreground">Taux de conversion</span>
               <InfoTooltip title="Taux de conversion des liens" description="Pourcentage de liens de paiement qui ont abouti à un paiement effectif." formula="(Liens payés ÷ Total liens créés) × 100" benefit="Un taux supérieur à 60% est excellent. En dessous de 40%, revoir le message d'accompagnement ou le délai d'expiration." />
             </div>
-            <p className="text-2xl font-display font-bold">{conversionRate}%</p>
+            <p className="text-fluid-2xl font-display font-bold">{conversionRate}%</p>
           </CardContent>
         </Card>
       </div>

@@ -23,7 +23,7 @@ export default function BrandingPage() {
 
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">Marque & design</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">Marque & design</h1>
         <p className="text-sm text-muted-foreground">Personnalisez l'apparence de vos documents et du portail client</p>
       </div>
 

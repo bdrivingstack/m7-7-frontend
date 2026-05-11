@@ -21,7 +21,7 @@ export default function CompanyPage() {
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div>
-        <h1 className="text-xl font-display font-bold">Entreprise</h1>
+        <h1 className="text-fluid-xl font-display font-bold">Entreprise</h1>
         <p className="text-sm text-muted-foreground">Informations légales et coordonnées de votre société</p>
       </div>
 

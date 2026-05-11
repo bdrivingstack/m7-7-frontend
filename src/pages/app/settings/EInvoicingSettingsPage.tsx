@@ -14,7 +14,7 @@ const platforms = [
 export default function EInvoicingSettingsPage() {
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">E-Facture</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">E-Facture</h1>
         <p className="text-sm text-muted-foreground">Conformité à la réforme de facturation électronique 2026</p>
       </div>
       <Card className="border-primary/20 bg-primary/5">

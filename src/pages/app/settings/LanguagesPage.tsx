@@ -9,7 +9,7 @@ const langs = [{code:"fr",label:"Français",flag:"🇫🇷",default:true},{code:
 export default function LanguagesPage() {
   return (
     <motion.div className="p-6 space-y-6 max-w-2xl" initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
-      <div><h1 className="text-xl font-display font-bold">Langue & région</h1>
+      <div><h1 className="text-fluid-xl font-display font-bold">Langue & région</h1>
         <p className="text-sm text-muted-foreground">Configurez la langue et les formats régionaux de vos documents</p>
       </div>
       <Card>

@@ -16,7 +16,7 @@ import {
   TrendingUp, AlertTriangle, Users, Download, Filter,
   ExternalLink, Star, Loader2, RefreshCw,
 } from "lucide-react";
-import { useApi } from "@/hooks/useApi";
+import { useApi, API_BASE } from "@/hooks/useApi";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -110,7 +110,7 @@ export default function CustomersListPage() {
     if (!newCustomer.name.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/customers", {
+      const res = await fetch(`${API_BASE}/api/customers`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCustomer),
@@ -121,7 +121,8 @@ export default function CustomersListPage() {
         setShowNewModal(false);
         setNewCustomer({ name: "", email: "", phone: "", address: "", siret: "" });
         refetch();
-        if (data?.id) navigate(`/app/customers/${data.id}`);
+        const createdId = data?.data?.id ?? data?.id;
+        if (createdId) navigate(`/app/customers/${createdId}`);
       } else {
         const errData = await res.json().catch(() => ({}));
         toast({
@@ -153,23 +154,23 @@ export default function CustomersListPage() {
   };
 
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-display font-bold">Clients</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Clients</h1>
           <p className="text-sm text-muted-foreground">
             Gérez vos clients et suivez leur activité
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
-            {loading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-            Actualiser
+            {loading ? <Loader2 className="h-3.5 w-3.5 sm:mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 sm:mr-1.5" />}
+            <span className="hidden sm:inline">Actualiser</span>
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV
+            <Download className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Exporter CSV</span>
           </Button>
           <Button size="sm" className="gradient-primary text-primary-foreground" onClick={() => setShowNewModal(true)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />Nouveau client
@@ -181,12 +182,12 @@ export default function CustomersListPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2"><Users className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">Clients actifs</span><InfoTooltip title="Clients actifs" description="Clients ayant au moins une facture émise ce trimestre et dont le statut est 'actif'." benefit="Suivre ce chiffre permet d'identifier une croissance ou une perte de clientèle." /></div>
-          <p className="text-2xl font-display font-bold">{active}</p>
+          <p className="text-fluid-2xl font-display font-bold">{active}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{customers.length} au total</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <div className="flex items-center gap-2 mb-2"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-xs text-muted-foreground">CA total</span><InfoTooltip title="Chiffre d'affaires total" description="Somme du CA HT généré par l'ensemble des clients filtrés sur toutes les périodes." formula="Σ totalRevenue de chaque client" benefit="Indique la valeur globale de votre portefeuille clients." /></div>
-          <p className="text-2xl font-display font-bold">{fmtEUR(totalRevenue)}</p>
+          <p className="text-fluid-2xl font-display font-bold">{fmtEUR(totalRevenue)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Tous clients confondus</p>
         </CardContent></Card>
         <Card className="border-destructive/20"><CardContent className="p-4">

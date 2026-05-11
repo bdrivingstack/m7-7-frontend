@@ -81,12 +81,12 @@ export default function VATPage() {
   );
 
   return (
-    <motion.div className="p-6 space-y-6" variants={container} initial="hidden" animate="show">
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
 
       {/* Header */}
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">TVA</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">TVA</h1>
           <p className="text-sm text-muted-foreground">Gestion et déclaration de la TVA</p>
         </div>
         <div className="flex gap-2">
@@ -130,7 +130,7 @@ export default function VATPage() {
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Collectée</p>
                     <InfoTooltip title="TVA collectée" description="TVA que vous avez facturée à vos clients sur la période. Vous la devez à l'État." formula="Σ TVA de toutes les factures émises et payées" benefit="Ce montant doit être reversé à l'administration fiscale lors de votre déclaration." />
                   </div>
-                  <p className="text-xl font-display font-bold">{fmt(current.collected)}</p>
+                  <p className="text-fluid-xl font-display font-bold">{fmt(current.collected)}</p>
                 </div>
                 <div>
                   <div className="flex items-center justify-center gap-1">
@@ -220,7 +220,7 @@ export default function VATPage() {
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="text-center p-4 rounded-xl bg-muted/30">
                   <p className="text-xs text-muted-foreground mb-1">TVA brute collectée</p>
-                  <p className="text-2xl font-display font-bold">{fmt(current.collected)}</p>
+                  <p className="text-fluid-2xl font-display font-bold">{fmt(current.collected)}</p>
                 </div>
                 <div className="text-center p-4 rounded-xl bg-success/5 border border-success/20">
                   <p className="text-xs text-muted-foreground mb-1">TVA déductible</p>
@@ -325,7 +325,7 @@ export default function VATPage() {
                   <p className="text-xs text-muted-foreground">Moyenne collectée / mois</p>
                   <InfoTooltip title="Moyenne TVA collectée / mois" description="Moyenne mensuelle de la TVA facturée à vos clients sur les 6 derniers mois." benefit="Utilisez cette moyenne pour estimer votre TVA collectée des prochains mois et anticiper votre déclaration." />
                 </div>
-                <p className="text-xl font-display font-bold">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.collected, 0) / monthlyVATData.length))}</p>
+                <p className="text-fluid-xl font-display font-bold">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.collected, 0) / monthlyVATData.length))}</p>
               </CardContent>
             </Card>
             <Card>

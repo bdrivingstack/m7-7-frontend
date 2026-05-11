@@ -10,10 +10,10 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", c
 
 export default function BanksPage() {
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Comptes bancaires</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Comptes bancaires</h1>
           <p className="text-sm text-muted-foreground">Gérez vos connexions bancaires et suivez vos soldes</p>
         </div>
         <Button size="sm" className="gradient-primary text-primary-foreground">
@@ -30,7 +30,7 @@ export default function BanksPage() {
                 Solde total
                 <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés au BELVEDERE en temps réel." benefit="Cette vue consolidée vous donne une image instantanée de votre trésorerie disponible, tous comptes confondus." />
               </p>
-              <p className="text-3xl font-display font-bold">
+              <p className="text-fluid-3xl font-display font-bold">
                 {fmt(bankAccounts.reduce((s, a) => s + a.balance, 0))}
               </p>
               <p className="text-xs text-muted-foreground mt-1">{bankAccounts.length} comptes connectés</p>

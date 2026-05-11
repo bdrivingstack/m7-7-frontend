@@ -42,7 +42,7 @@ export default function KanbanBoardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Kanban</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Kanban</h1>
           <p className="text-sm text-muted-foreground">Visualisez et gérez vos tâches en cours</p>
         </div>
         <div className="flex gap-2">

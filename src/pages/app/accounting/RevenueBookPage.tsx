@@ -15,10 +15,10 @@ const totalNet = revenueBookEntries.reduce((s, e) => s + e.net, 0);
 
 export default function RevenueBookPage() {
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold">Livre des recettes</h1>
+          <h1 className="text-fluid-2xl font-display font-bold">Livre des recettes</h1>
           <p className="text-sm text-muted-foreground">Registre chronologique de vos encaissements</p>
         </div>
         <div className="flex gap-2">
@@ -35,7 +35,7 @@ export default function RevenueBookPage() {
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total TTC</p>
               <InfoTooltip title="Total TTC" description="Somme de toutes les recettes toutes taxes comprises enregistrées dans le livre des recettes sur la période." benefit="Montant brut encaissé ou à encaisser. Inclut la TVA que vous devrez reverser à l'État." />
             </div>
-            <p className="text-xl font-display font-bold">{fmt(totalRevenue)}</p>
+            <p className="text-fluid-xl font-display font-bold">{fmt(totalRevenue)}</p>
           </CardContent>
         </Card>
         <Card>

@@ -28,7 +28,7 @@ export default function InvoiceDetailPage() {
   const isLocked = !["draft"].includes(invoice.status);
 
   return (
-    <motion.div className="p-6 space-y-6" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -37,7 +37,7 @@ export default function InvoiceDetailPage() {
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-display font-bold">{invoice.number}</h1>
+              <h1 className="text-fluid-2xl font-display font-bold">{invoice.number}</h1>
               <Badge variant="secondary" className={`${sc.color}`}>{sc.label}</Badge>
               {isLocked && (
                 <Badge variant="secondary" className="bg-muted text-muted-foreground text-[9px]">🔒 Verrouillée</Badge>
