@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,6 +84,7 @@ function normalizeApiCustomer(raw: any) {
 
 export default function CustomerDetailPage() {
   const { id }  = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const demo    = useDemo();
   const isDemo  = !!demo?.isDemo;
 
@@ -187,10 +188,14 @@ export default function CustomerDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm"
+            onClick={() => navigate(`/app/customers/${id}/edit`)}
+          >
             <Edit className="h-3.5 w-3.5 mr-1.5" />Modifier
           </Button>
-          <Button size="sm" className="gradient-primary text-primary-foreground">
+          <Button size="sm" className="gradient-primary text-primary-foreground"
+            onClick={() => navigate(`/app/sales/invoices/new?customerId=${id}&customerName=${encodeURIComponent(customer.name)}`)}
+          >
             <Plus className="h-3.5 w-3.5 mr-1.5" />Nouvelle facture
           </Button>
           <DropdownMenu>
@@ -200,9 +205,15 @@ export default function CustomerDetailPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="text-xs">
-              <DropdownMenuItem><FileText className="h-3 w-3 mr-2" />Nouveau devis</DropdownMenuItem>
-              <DropdownMenuItem><Mail className="h-3 w-3 mr-2" />Envoyer un email</DropdownMenuItem>
-              <DropdownMenuItem><ExternalLink className="h-3 w-3 mr-2" />Ouvrir le portail</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(`/app/sales/quotes/new?customerId=${id}&customerName=${encodeURIComponent(customer.name)}`)}>
+                <FileText className="h-3 w-3 mr-2" />Nouveau devis
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => customer.email ? window.open(`mailto:${customer.email}`) : toast({ title: "Pas d'email", description: "Ce client n'a pas d'email renseigné.", variant: "destructive" })}>
+                <Mail className="h-3 w-3 mr-2" />Envoyer un email
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Portail client", description: "Cette fonctionnalité sera disponible prochainement." })}>
+                <ExternalLink className="h-3 w-3 mr-2" />Ouvrir le portail
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

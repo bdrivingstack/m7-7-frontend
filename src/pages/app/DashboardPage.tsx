@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useApi } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemo } from "@/contexts/DemoContext";
@@ -57,25 +58,21 @@ export default function DashboardPage() {
   const isDemo     = !!demo?.isDemo;
   const [period, setPeriod] = useState<"month" | "quarter" | "year">("month");
 
-  const { data: apiReport,   loading: loadingReport,   error: reportError,   refetch: refetchReport }
+  const { data: apiReport, loading: loadingReport, error: reportError, refetch: refetchReport }
     = useApi<any>(`/api/reports/dashboard?period=${period}`, { skip: isDemo });
-  const { data: apiInvoices, loading: loadingInvoices }
-    = useApi<any>("/api/invoices?limit=5&sort=date&order=desc",          { skip: isDemo });
-  const { data: apiCustomers }
-    = useApi<any>("/api/customers?limit=5&sort=revenue&order=desc",      { skip: isDemo });
 
-  const loading = !isDemo && (loadingReport || loadingInvoices);
+  const loading = !isDemo && loadingReport;
 
   // ── Résolution des données ────────────────────────────────────────────────
-  // /demo/* → données mock garanties · /app/* → API uniquement (jamais de fallback mock)
-  const kpi               = isDemo ? mockKpi             : (apiReport?.kpis             ?? null);
-  const revenueChartData  = isDemo ? mockRevenue         : (apiReport?.revenueChart      ?? []);
-  const cashflowForecast  = isDemo ? mockCashflow        : (apiReport?.cashflow          ?? []);
-  const topClients        = isDemo ? mockTopClients      : (apiCustomers?.data           ?? apiCustomers?.customers ?? []);
-  const recentInvoices    = isDemo ? mockRecentInvoices  : (apiInvoices?.data            ?? apiInvoices?.invoices   ?? []);
-  const alerts            = isDemo ? []                  : (apiReport?.alerts            ?? []);
-  const aiRecommendations = isDemo ? mockAiRec           : (apiReport?.aiRecommendations ?? []);
-  const topProducts       = isDemo ? mockTopProducts     : (apiReport?.topProducts       ?? []);
+  // /demo/* → données mock garanties · /app/* → API uniquement
+  const kpi               = isDemo ? mockKpi          : (apiReport?.kpis             ?? null);
+  const revenueChartData  = isDemo ? mockRevenue      : (apiReport?.revenueChart      ?? []);
+  const cashflowForecast  = isDemo ? mockCashflow     : (apiReport?.cashflow          ?? []);
+  const topClients        = isDemo ? mockTopClients   : (apiReport?.topClients        ?? []);
+  const recentInvoices    = isDemo ? mockRecentInvoices : (apiReport?.recentInvoices  ?? []);
+  const alerts            = isDemo ? []               : (apiReport?.alerts            ?? []);
+  const aiRecommendations = isDemo ? mockAiRec        : (apiReport?.aiRecommendations ?? []);
+  const topProducts       = isDemo ? mockTopProducts  : (apiReport?.topProducts       ?? []);
 
   // ── États loading / erreur (uniquement en mode réel) ─────────────────────
   if (!isDemo && loading) {
@@ -449,7 +446,7 @@ export default function DashboardPage() {
                   Dernières factures
                   <InfoTooltip {...DASHBOARD_TOOLTIPS.invoices} />
                 </CardTitle>
-                <Button variant="ghost" size="sm" className="text-xs">Voir tout →</Button>
+                <Link to="/app/sales/invoices"><Button variant="ghost" size="sm" className="text-xs">Voir tout →</Button></Link>
               </div>
             </CardHeader>
             <CardContent>

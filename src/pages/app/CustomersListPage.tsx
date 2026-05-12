@@ -9,12 +9,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Search, Plus, MoreHorizontal, Eye, Mail, FileText,
   TrendingUp, AlertTriangle, Users, Download,
-  ExternalLink, Loader2, RefreshCw, X, Building2, User,
+  ExternalLink, Loader2, RefreshCw, X, Building2, User, Trash2,
 } from "lucide-react";
 import { useApi, API_BASE } from "@/hooks/useApi";
 import { motion } from "framer-motion";
@@ -82,6 +86,10 @@ export default function CustomersListPage() {
   const [profileType,    setProfileType]    = useState<"entreprise" | "particulier">("entreprise");
   const [firstName,      setFirstName]      = useState("");
   const [lastName,       setLastName]       = useState("");
+
+  // ── Suppression client ─────────────────────────────────────────────────────
+  const [deleteTarget,   setDeleteTarget]   = useState<{ id: string; name: string } | null>(null);
+  const [deleting,       setDeleting]       = useState(false);
 
   // ── SIREN autocomplete ─────────────────────────────────────────────────────
   const [sirenQuery,    setSirenQuery]    = useState("");
@@ -283,6 +291,29 @@ export default function CustomersListPage() {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Supprimer client ──────────────────────────────────────────────────────
+  const handleDeleteCustomer = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/customers/${deleteTarget.id}`, {
+        method: "DELETE", credentials: "include",
+      });
+      if (res.ok) {
+        toast({ title: "Client supprimé", description: `${deleteTarget.name} a été supprimé.` });
+        setDeleteTarget(null);
+        refetch();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast({ title: "Erreur", description: errData.message ?? "Impossible de supprimer.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -514,6 +545,12 @@ export default function CustomersListPage() {
                                 <ExternalLink className="h-3 w-3 mr-2" />Accès portail
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setDeleteTarget({ id: customer.id, name: customer.name })}
+                            >
+                              <Trash2 className="h-3 w-3 mr-2" />Supprimer
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -532,6 +569,31 @@ export default function CustomersListPage() {
           )}
         </div>
       </CardContent></Card>
+
+      {/* ── Confirmation suppression ─────────────────────────────────────────── */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{deleteTarget?.name}</strong> sera supprimé définitivement.
+              Ses factures et devis existants seront conservés mais ne seront plus liés à un client actif.
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCustomer}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Modal Nouveau client ──────────────────────────────────────────────── */}
       <Dialog open={showNewModal} onOpenChange={(open) => { if (!open) closeModal(); }}>
