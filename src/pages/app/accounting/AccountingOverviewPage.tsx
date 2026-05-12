@@ -12,20 +12,57 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { accountingOverviewStats as stats, accountingCategories, vatSummary, socialContributions } from "@/lib/accounting-data";
-import { revenueChartData } from "@/lib/mock-data";
+import { accountingOverviewStats as mockStats, accountingCategories as mockCategories, vatSummary as mockVatSummary, socialContributions as mockSocialContributions } from "@/lib/accounting-data";
+import { revenueChartData as mockRevenueChartData } from "@/lib/mock-data";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useDemo } from "@/contexts/DemoContext";
+import { useApi } from "@/hooks/useApi";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
-
-const revenueCats = accountingCategories.filter(c => c.type === "revenue");
-const expenseCats = accountingCategories.filter(c => c.type === "expense");
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
+const EMPTY_STATS = { totalRevenue: 0, totalExpenses: 0, netResult: 0, vatDue: 0, uncategorized: 0, unreconciled: 0 };
+
 export default function AccountingOverviewPage() {
+  const demo   = useDemo();
+  const isDemo = !!demo?.isDemo;
+
+  const { data: apiReport } = useApi<any>("/api/reports/dashboard?period=month", { skip: isDemo });
+
+  const stats          = isDemo ? mockStats          : EMPTY_STATS;
+  const revenueChartData = isDemo ? mockRevenueChartData : (apiReport?.revenueChart ?? []);
+  const revenueCats    = isDemo ? mockCategories.filter(c => c.type === "revenue")  : [];
+  const expenseCats    = isDemo ? mockCategories.filter(c => c.type === "expense")  : [];
+  const vatSummary     = isDemo ? mockVatSummary     : null;
+  const socialContributions = isDemo ? mockSocialContributions : [];
+
+  if (!isDemo && !apiReport) {
+    return (
+      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Landmark className="h-8 w-8 text-primary" />
+        </div>
+        <div>
+          <p className="font-display font-semibold text-lg">Comptabilité vide</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            Créez votre première facture ou importez un relevé bancaire pour alimenter votre comptabilité.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-center">
+          <Link to="/app/sales/invoices/new">
+            <Button variant="outline" size="sm"><FileText className="h-3.5 w-3.5 mr-1.5" />Nouvelle facture</Button>
+          </Link>
+          <Link to="/app/accounting/intelligence">
+            <Button className="gradient-primary text-primary-foreground" size="sm"><GitBranch className="h-3.5 w-3.5 mr-1.5" />Import IA</Button>
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
       <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

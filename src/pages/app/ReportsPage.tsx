@@ -26,7 +26,9 @@ import {
 import { monthlyCashflow } from "@/lib/payments-data";
 import { motion } from "framer-motion";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useDemo } from "@/contexts/DemoContext";
+import { useApi } from "@/hooks/useApi";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -165,14 +167,43 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function ReportsPage() {
   const navigate = useNavigate();
+  const demo     = useDemo();
+  const isDemo   = !!demo?.isDemo;
   const [period, setPeriod] = useState("2024");
   const [tab, setTab] = useState("financier");
   const [exporting, setExporting] = useState(false);
 
-  const totalRevenue = revenueChartData.reduce((s, d) => s + d.revenue, 0);
-  const totalExpenses = revenueChartData.reduce((s, d) => s + d.expenses, 0);
-  const totalProfit = revenueChartData.reduce((s, d) => s + d.profit, 0);
-  const avgMargin = Math.round((totalProfit / totalRevenue) * 100);
+  const { data: apiReport } = useApi<any>("/api/reports/dashboard?period=year", { skip: isDemo });
+
+  // En mode /app/*, si aucune donnée API disponible → état vide
+  if (!isDemo && !apiReport) {
+    return (
+      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <BarChart2 className="h-8 w-8 text-primary" />
+        </div>
+        <div>
+          <p className="font-display font-semibold text-lg">Aucune donnée disponible</p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            Vos rapports s'alimentent automatiquement depuis vos factures, devis et transactions importées.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap justify-center">
+          <Link to="/app/sales/invoices">
+            <Button variant="outline" size="sm"><FileText className="h-3.5 w-3.5 mr-1.5" />Mes factures</Button>
+          </Link>
+          <Link to="/app/accounting/intelligence">
+            <Button className="gradient-primary text-primary-foreground" size="sm"><Zap className="h-3.5 w-3.5 mr-1.5" />Importer un relevé</Button>
+          </Link>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const totalRevenue = isDemo ? revenueChartData.reduce((s, d) => s + d.revenue, 0) : (apiReport?.kpis?.revenueAnnual ?? 0);
+  const totalExpenses = isDemo ? revenueChartData.reduce((s, d) => s + d.expenses, 0) : (apiReport?.kpis?.cashOut ?? 0);
+  const totalProfit   = isDemo ? revenueChartData.reduce((s, d) => s + d.profit, 0)  : (apiReport?.kpis?.netResult ?? 0);
+  const avgMargin     = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
   const handleExportPDF = async (type: "monthly" | "annual") => {
     setExporting(true);
