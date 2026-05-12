@@ -3,12 +3,17 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft, Mail, Phone, MapPin, FileText, Plus,
   Edit, ExternalLink, TrendingUp, Clock, AlertTriangle,
   CheckCircle, Building2, User, Star, MoreHorizontal,
-  MessageSquare, Shield, Zap,
+  MessageSquare, Shield, Zap, Loader2, Save,
 } from "lucide-react";
 import {
   customers, statusConfig, riskConfig, paymentTermsConfig,
@@ -88,7 +93,7 @@ export default function CustomerDetailPage() {
   const demo    = useDemo();
   const isDemo  = !!demo?.isDemo;
 
-  const { data: apiResponse, loading } = useApi<{ data: any }>(
+  const { data: apiResponse, loading, refetch } = useApi<{ data: any }>(
     `/api/customers/${id}`,
     { skip: isDemo },
   );
@@ -98,6 +103,51 @@ export default function CustomerDetailPage() {
   const customer = isDemo
     ? mockMatch ?? null
     : apiResponse?.data ? normalizeApiCustomer(apiResponse.data) : null;
+
+  // ── Modal édition ────────────────────────────────────────────────────────
+  const [showEdit,  setShowEdit]  = useState(false);
+  const [editForm,  setEditForm]  = useState<Record<string, string>>({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEdit = () => {
+    if (!customer) return;
+    setEditForm({
+      name:       customer.name        ?? "",
+      email:      customer.email       ?? "",
+      phone:      customer.phone       ?? "",
+      siret:      customer.siret       ?? "",
+      tvaNumber:  customer.tvaNumber   ?? "",
+      address:    customer.billingAddress?.line1 ?? customer.address ?? "",
+      city:       customer.billingAddress?.city  ?? customer.city    ?? "",
+      postalCode: customer.billingAddress?.zip   ?? customer.postalCode ?? "",
+      notes:      typeof customer.notes === "string" ? customer.notes : "",
+    });
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.name?.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/customers/${id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (res.ok) {
+        toast({ title: "Client mis à jour", description: `${editForm.name} a été modifié avec succès.` });
+        setShowEdit(false);
+        refetch();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        toast({ title: "Erreur", description: errData.message ?? "Impossible de mettre à jour.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   // ── État URSSAF ──────────────────────────────────────────────────────────
   const [urssafEnabled, setUrssafEnabled] = useState<boolean>(false);
@@ -188,9 +238,7 @@ export default function CustomerDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm"
-            onClick={() => navigate(`/app/customers/${id}/edit`)}
-          >
+          <Button variant="outline" size="sm" onClick={openEdit}>
             <Edit className="h-3.5 w-3.5 mr-1.5" />Modifier
           </Button>
           <Button size="sm" className="gradient-primary text-primary-foreground"
@@ -672,6 +720,122 @@ export default function CustomerDetailPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* ── Modal Modifier client ─────────────────────────────────────────── */}
+      <Dialog open={showEdit} onOpenChange={(open) => { if (!open) setShowEdit(false); }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier le client</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <div className="space-y-1">
+              <Label className="text-xs">Nom / Raison sociale *</Label>
+              <Input
+                value={editForm.name ?? ""}
+                onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Email</Label>
+                <Input
+                  type="email"
+                  value={editForm.email ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Téléphone</Label>
+                <Input
+                  value={editForm.phone ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">SIRET</Label>
+                <Input
+                  value={editForm.siret ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, siret: e.target.value }))}
+                  placeholder="12345678900010"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">N° TVA</Label>
+                <Input
+                  value={editForm.tvaNumber ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, tvaNumber: e.target.value }))}
+                  placeholder="FR12345678901"
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Adresse</Label>
+              <Input
+                value={editForm.address ?? ""}
+                onChange={e => setEditForm(p => ({ ...p, address: e.target.value }))}
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Ville</Label>
+                <Input
+                  value={editForm.city ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, city: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Code postal</Label>
+                <Input
+                  value={editForm.postalCode ?? ""}
+                  onChange={e => setEditForm(p => ({ ...p, postalCode: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Notes</Label>
+              <textarea
+                value={editForm.notes ?? ""}
+                onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowEdit(false)}>
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              className="gradient-primary text-primary-foreground"
+              onClick={handleSaveEdit}
+              disabled={editSaving || !editForm.name?.trim()}
+            >
+              {editSaving
+                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                : <Save    className="h-3.5 w-3.5 mr-1.5" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
