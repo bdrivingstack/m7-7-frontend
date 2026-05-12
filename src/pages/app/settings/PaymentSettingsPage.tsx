@@ -23,11 +23,10 @@ export default function PaymentSettingsPage() {
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Landmark className="h-4 w-4"/>Coordonnées bancaires (RIB)</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div className="p-3 rounded-lg border border-border/50 bg-muted/20 flex items-center justify-between">
-            <div><p className="text-sm font-medium">Qonto — Compte principal</p>
-              <p className="text-xs font-mono text-muted-foreground">FR76 3000 6000 0112 3456 7890 189 · BNPAFRPP</p>
-            </div>
-            <Badge variant="secondary" className="text-[10px] bg-success/10 text-success">Actif</Badge>
+          <div className="p-4 rounded-lg border border-dashed border-border/60 bg-muted/20 text-center space-y-2">
+            <Landmark className="h-6 w-6 text-muted-foreground/50 mx-auto" />
+            <p className="text-xs text-muted-foreground">Aucun compte bancaire configuré.</p>
+            <p className="text-[10px] text-muted-foreground">Connectez Qonto ou renseignez votre IBAN dans les paramètres de l'entreprise.</p>
           </div>
           <Button variant="outline" size="sm" className="text-xs"><Plus className="h-3.5 w-3.5 mr-1.5"/>Ajouter un compte</Button>
         </CardContent>

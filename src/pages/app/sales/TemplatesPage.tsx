@@ -13,6 +13,8 @@ import {
   Mail, FileCheck,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useDemo } from "@/contexts/DemoContext";
+import { toast } from "@/hooks/use-toast";
 
 type TemplateCategory = "invoice" | "quote" | "email" | "reminder";
 type TemplateType = "document" | "email";
@@ -103,8 +105,102 @@ const categoryConfig: Record<TemplateCategory, { label: string; color: string }>
 };
 
 export default function TemplatesPage() {
+  const demo   = useDemo();
+  const isDemo = !!demo?.isDemo;
   const [search, setSearch] = useState("");
   const [docFilter, setDocFilter] = useState<"all" | "invoice" | "quote">("all");
+
+  if (!isDemo) {
+    return (
+      <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-fluid-2xl font-display font-bold">Modèles</h1>
+            <p className="text-sm text-muted-foreground">Documents et emails réutilisables</p>
+          </div>
+          <Button size="sm" className="gradient-primary text-primary-foreground"
+            onClick={() => toast({ title: "Bientôt disponible", description: "La création de modèles personnalisés sera disponible prochainement." })}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />Nouveau modèle
+          </Button>
+        </div>
+        <Tabs defaultValue="documents">
+          <TabsList>
+            <TabsTrigger value="documents" className="gap-2"><Layout className="h-3.5 w-3.5" />Documents PDF</TabsTrigger>
+            <TabsTrigger value="emails" className="gap-2"><Mail className="h-3.5 w-3.5" />Emails & Relances</TabsTrigger>
+          </TabsList>
+          <TabsContent value="documents" className="mt-4">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {docTemplates.map((t) => (
+                <Card key={t.id} className="border-border/50 overflow-hidden">
+                  <div className={`h-28 bg-gradient-to-br ${t.preview} relative`}>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-20">
+                      <FileCheck className="h-16 w-16 text-white" />
+                    </div>
+                    {t.isDefault && (
+                      <div className="absolute top-2 right-2">
+                        <Badge className="text-[9px] bg-white/20 text-white border-0 backdrop-blur-sm">
+                          <Star className="h-2.5 w-2.5 mr-0.5" />Défaut
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-sm">{t.name}</h3>
+                      <Badge variant="secondary" className={`text-[10px] ${categoryConfig[t.category].color}`}>{categoryConfig[t.category].label}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed line-clamp-2">{t.description}</p>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 text-xs h-7"
+                        onClick={() => toast({ title: "Aperçu", description: "La prévisualisation PDF sera disponible prochainement." })}>
+                        <Eye className="h-3 w-3 mr-1" />Aperçu
+                      </Button>
+                      <Button size="sm" className="flex-1 gradient-primary text-primary-foreground text-xs h-7"
+                        onClick={() => toast({ title: "Bientôt disponible", description: "L'utilisation de modèles sera disponible prochainement." })}>
+                        Utiliser
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+          <TabsContent value="emails" className="mt-4 space-y-3">
+            {emailTemplates.map((t) => {
+              const cc = categoryConfig[t.category];
+              return (
+                <Card key={t.id} className="border-border/50">
+                  <CardContent className="p-4 flex items-start gap-4">
+                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${t.category === "reminder" ? "bg-orange-500/10" : "bg-violet-500/10"}`}>
+                      <Mail className={`h-4 w-4 ${t.category === "reminder" ? "text-orange-500" : "text-violet-500"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-sm">{t.name}</h3>
+                        <Badge variant="secondary" className={`text-[10px] ${cc.color}`}>{cc.label}</Badge>
+                        {t.isDefault && <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground">Défaut</Badge>}
+                      </div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Objet : {t.subject}</p>
+                      <p className="text-xs text-muted-foreground truncate">{t.preview}</p>
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {t.variables.map((v) => (
+                          <span key={v} className="text-[9px] px-1.5 py-0.5 rounded bg-secondary font-mono text-muted-foreground">{`{{${v}}}`}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7"
+                      onClick={() => toast({ title: "Bientôt disponible", description: "La modification des modèles email sera disponible prochainement." })}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </TabsContent>
+        </Tabs>
+      </motion.div>
+    );
+  }
 
   const filteredDocs = docTemplates.filter((t) => {
     if (docFilter !== "all" && t.category !== docFilter) return false;

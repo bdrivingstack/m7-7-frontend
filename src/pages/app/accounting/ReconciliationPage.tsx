@@ -4,17 +4,45 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle, XCircle, AlertCircle, GitBranch, Bot,
-  ArrowUpRight, ArrowDownRight, Link2, FileText, RefreshCw,
+  ArrowUpRight, ArrowDownRight, Link2, FileText, RefreshCw, Upload,
 } from "lucide-react";
 import { reconciliationItems, bankTransactions } from "@/lib/accounting-data";
 import { motion } from "framer-motion";
+import { useDemo } from "@/contexts/DemoContext";
+import { Link } from "react-router-dom";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
-const matched = reconciliationItems.filter(r => r.status === "matched");
+const matched   = reconciliationItems.filter(r => r.status === "matched");
 const unmatched = reconciliationItems.filter(r => r.status === "unmatched");
 
 export default function ReconciliationPage() {
+  const demo   = useDemo();
+  const isDemo = !!demo?.isDemo;
+
+  if (!isDemo) {
+    return (
+      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+          <GitBranch className="h-10 w-10 text-primary/50" />
+        </div>
+        <h2 className="text-xl font-display font-bold mb-2">Rapprochement bancaire</h2>
+        <p className="text-sm text-muted-foreground max-w-md mb-2">
+          Aucune transaction bancaire à rapprocher.
+        </p>
+        <p className="text-xs text-muted-foreground max-w-sm mb-6">
+          Importez d'abord vos relevés bancaires via l'Intelligence Comptable pour pouvoir
+          rapprocher vos transactions avec vos factures.
+        </p>
+        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+          <Link to="/app/accounting/intelligence">
+            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+          </Link>
+        </Button>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -28,14 +56,13 @@ export default function ReconciliationPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-3.5 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <CheckCircle className="h-4 w-4 text-success" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Rapprochées</span>
-              <InfoTooltip title="Transactions rapprochées" description="Mouvements bancaires qui ont été associés à une facture ou dépense dans LE BELVEDERE." benefit="Une transaction rapprochée signifie que votre comptabilité correspond à votre relevé bancaire réel." />
+              <InfoTooltip title="Transactions rapprochées" description="Mouvements bancaires associés à une facture ou dépense." benefit="Une transaction rapprochée = comptabilité alignée avec le relevé bancaire." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{matched.length}</p>
           </CardContent>
@@ -45,7 +72,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <AlertCircle className="h-4 w-4 text-warning" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">En attente</span>
-              <InfoTooltip title="Transactions en attente de rapprochement" description="Mouvements bancaires importés non encore associés à une pièce comptable." benefit="Rapprochez ces transactions rapidement pour maintenir une comptabilité fiable et détecter d'éventuelles erreurs ou fraudes." />
+              <InfoTooltip title="Transactions en attente" description="Mouvements bancaires importés non encore associés." benefit="Rapprochez rapidement pour maintenir une comptabilité fiable." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{unmatched.length}</p>
           </CardContent>
@@ -55,7 +82,7 @@ export default function ReconciliationPage() {
             <div className="flex items-center justify-center gap-2 mb-1">
               <GitBranch className="h-4 w-4 text-primary" />
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Taux</span>
-              <InfoTooltip title="Taux de rapprochement" description="Pourcentage de transactions bancaires qui ont été rapprochées avec succès." formula="(Transactions rapprochées ÷ Total transactions) × 100" benefit="Un taux de 100% signifie que votre comptabilité est parfaitement alignée avec votre banque." />
+              <InfoTooltip title="Taux de rapprochement" description="Pourcentage de transactions rapprochées." formula="(Rapprochées ÷ Total) × 100" benefit="100% = comptabilité parfaitement alignée." />
             </div>
             <p className="text-2xl font-display font-bold text-primary">
               {Math.round((matched.length / reconciliationItems.length) * 100)}%
@@ -64,14 +91,12 @@ export default function ReconciliationPage() {
         </Card>
       </div>
 
-      {/* Unmatched - requires action */}
       {unmatched.length > 0 && (
         <Card className="border-warning/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-warning" />
               Transactions à rapprocher ({unmatched.length})
-              <InfoTooltip title="Transactions à rapprocher" description="Ces mouvements bancaires ont été importés mais n'ont pas encore été associés à une facture ou une dépense dans LE BELVEDERE." benefit="Cliquez sur 'Associer' pour lier manuellement, ou utilisez 'IA' pour une suggestion automatique basée sur le montant et la date." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -105,13 +130,11 @@ export default function ReconciliationPage() {
         </Card>
       )}
 
-      {/* Matched */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-success" />
             Transactions rapprochées ({matched.length})
-            <InfoTooltip title="Transactions rapprochées" description="Ces mouvements bancaires ont été associés avec succès à une pièce comptable dans LE BELVEDERE." benefit="L'historique des rapprochements vous permet de justifier chaque mouvement en cas de contrôle fiscal." />
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">

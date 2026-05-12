@@ -6,48 +6,62 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Link } from "react-router-dom";
 import {
   Shield, Lock, Smartphone, Monitor, Globe, AlertTriangle,
-  CheckCircle, XCircle, Eye, EyeOff, LogOut, Trash2,
-  Key, RefreshCw, QrCode, Clock, MapPin, Wifi, Save,
-  ShieldAlert, ShieldCheck, Info, Copy,
+  CheckCircle, Eye, EyeOff, LogOut, Trash2,
+  Key, QrCode, Clock, Save, ShieldAlert, ShieldCheck, Info, Copy, Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
-
-// Mock active sessions
-const sessions = [
-  { id: "S1", device: "Chrome · macOS", location: "Paris, France", ip: "92.184.12.x", current: true,  lastSeen: "En cours", trusted: true },
-  { id: "S2", device: "Safari · iPhone 15", location: "Paris, France", ip: "92.184.12.x", current: false, lastSeen: "Il y a 2h",  trusted: true },
-  { id: "S3", device: "Firefox · Windows 11", location: "Lyon, France",  ip: "78.241.55.x", current: false, lastSeen: "Hier 18:42",  trusted: false },
-  { id: "S4", device: "Chrome · Android",    location: "Marseille, France", ip: "109.22.14.x", current: false, lastSeen: "Il y a 5j",  trusted: false },
-];
-
-// Mock recent security events
-const securityLog = [
-  { icon: CheckCircle, color: "text-success", event: "Connexion réussie",        detail: "Chrome · Paris",       time: "Aujourd'hui 09:15" },
-  { icon: Shield,      color: "text-primary", event: "2FA vérifié",              detail: "Application TOTP",     time: "Aujourd'hui 09:15" },
-  { icon: AlertTriangle,color:"text-warning", event: "Connexion depuis un nouvel appareil", detail: "Firefox · Lyon", time: "Hier 18:42" },
-  { icon: XCircle,     color: "text-destructive", event: "Tentative de connexion échouée", detail: "Mot de passe incorrect · 3 essais", time: "Il y a 3j" },
-  { icon: Key,         color: "text-muted-foreground", event: "Mot de passe modifié", detail: "Par Jean Dupont", time: "Il y a 7j" },
-];
+import { useApi } from "@/hooks/useApi";
+import { toast } from "@/hooks/use-toast";
 
 export default function SecurityPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [mfaEnabled, setMfaEnabled] = useState(true);
-  const [ssoEnabled, setSsoEnabled] = useState(false);
-  const [ipWhitelist, setIpWhitelist] = useState(false);
-  const [forceMfa, setForceMfa] = useState(false);
+  const { data: meData } = useApi<any>("/api/users/me");
+  const me = meData?.data;
+
+  const mfaEnabled = me?.isMfaEnabled ?? false;
+
+  const [showPassword,   setShowPassword]   = useState(false);
+  const [ssoEnabled,     setSsoEnabled]     = useState(false);
+  const [ipWhitelist,    setIpWhitelist]    = useState(false);
+  const [forceMfa,       setForceMfa]       = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState("8");
-  const [showBackupCodes, setShowBackupCodes] = useState(false);
-  const [newIp, setNewIp] = useState("");
+  const [showBackupCodes,setShowBackupCodes]= useState(false);
+  const [newIp,          setNewIp]          = useState("");
 
-  const backupCodes = [
-    "ABCD-1234", "EFGH-5678", "IJKL-9012",
-    "MNOP-3456", "QRST-7890", "UVWX-2345",
-    "YZAB-6789", "CDEF-0123",
-  ];
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword,     setNewPassword]     = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPwd,     setChangingPwd]     = useState(false);
 
-  const ipList = ["92.184.12.0/24", "78.192.55.10"];
+  const backupCodes = ["ABCD-1234","EFGH-5678","IJKL-9012","MNOP-3456","QRST-7890","UVWX-2345","YZAB-6789","CDEF-0123"];
+  const ipList      = ["92.184.12.0/24"];
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Erreur", description: "Les mots de passe ne correspondent pas.", variant: "destructive" });
+      return;
+    }
+    setChangingPwd(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/users/me/change-password`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Mot de passe modifié", description: data.message ?? "Reconnectez-vous avec votre nouveau mot de passe." });
+        setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      } else {
+        toast({ title: "Erreur", description: data?.message ?? "Impossible de modifier le mot de passe.", variant: "destructive" });
+      }
+    } finally {
+      setChangingPwd(false);
+    }
+  };
 
   return (
     <motion.div className="p-6 space-y-6 max-w-3xl" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -56,17 +70,16 @@ export default function SecurityPage() {
           <h1 className="text-fluid-xl font-display font-bold">Sécurité</h1>
           <p className="text-sm text-muted-foreground">Protégez votre compte et contrôlez les accès</p>
         </div>
-        {/* Security score */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/20">
-          <ShieldCheck className="h-5 w-5 text-success" />
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${mfaEnabled ? "bg-success/10 border-success/20" : "bg-warning/10 border-warning/20"}`}>
+          <ShieldCheck className={`h-5 w-5 ${mfaEnabled ? "text-success" : "text-warning"}`} />
           <div>
-            <p className="text-xs font-bold text-success">Score : 82/100</p>
-            <p className="text-[10px] text-muted-foreground">Bon niveau</p>
+            <p className={`text-xs font-bold ${mfaEnabled ? "text-success" : "text-warning"}`}>{mfaEnabled ? "2FA activé" : "2FA désactivé"}</p>
+            <p className="text-[10px] text-muted-foreground">{mfaEnabled ? "Compte sécurisé" : "Activez le 2FA"}</p>
           </div>
         </div>
       </div>
 
-      {/* Score breakdown */}
+      {/* Recommandations */}
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -75,12 +88,11 @@ export default function SecurityPage() {
           </div>
           <div className="space-y-2">
             {[
-              { done: true,  label: "Authentification 2FA activée" },
-              { done: true,  label: "Mot de passe fort (12+ caractères)" },
-              { done: true,  label: "Sessions actives surveillées" },
-              { done: false, label: "Forcer le 2FA pour tous les utilisateurs", cta: "Activer" },
-              { done: false, label: "Restreindre l'accès par adresse IP", cta: "Configurer" },
-              { done: false, label: "Activer le SSO / SAML pour votre domaine", cta: "En savoir plus" },
+              { done: mfaEnabled,  label: "Authentification 2FA activée" },
+              { done: true,        label: "Mot de passe fort (12+ caractères)" },
+              { done: false,       label: "Forcer le 2FA pour tous les utilisateurs", cta: "Activer" },
+              { done: false,       label: "Restreindre l'accès par adresse IP", cta: "Configurer" },
+              { done: false,       label: "Activer le SSO / SAML pour votre domaine", cta: "En savoir plus" },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-2.5 text-xs">
                 {item.done
@@ -88,7 +100,10 @@ export default function SecurityPage() {
                   : <AlertTriangle className="h-3.5 w-3.5 text-warning flex-shrink-0" />}
                 <span className={item.done ? "text-muted-foreground line-through" : "font-medium"}>{item.label}</span>
                 {!item.done && item.cta && (
-                  <button className="text-primary hover:underline ml-auto">{item.cta}</button>
+                  <button className="text-primary hover:underline ml-auto text-xs"
+                    onClick={() => toast({ title: "Bientôt disponible", description: `${item.cta} sera disponible prochainement.` })}>
+                    {item.cta}
+                  </button>
                 )}
               </div>
             ))}
@@ -108,31 +123,37 @@ export default function SecurityPage() {
             <div className="space-y-1.5">
               <Label className="text-xs">Mot de passe actuel</Label>
               <div className="relative">
-                <Input type={showPassword ? "text" : "password"} placeholder="••••••••••••" className="h-9 text-sm pr-9" />
-                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                <Input type={showPassword ? "text" : "password"} value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••••••" className="h-9 text-sm pr-9" />
+                <button className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}>
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Nouveau mot de passe</Label>
-              <Input type="password" placeholder="••••••••••••" className="h-9 text-sm" />
+              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••••••" className="h-9 text-sm" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Confirmer le nouveau mot de passe</Label>
-              <Input type="password" placeholder="••••••••••••" className="h-9 text-sm" />
+              <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••••••" className="h-9 text-sm" />
             </div>
           </div>
           <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1.5">
             <p className="font-medium text-muted-foreground">Règles du mot de passe :</p>
-            {["12 caractères minimum", "1 majuscule et 1 minuscule", "1 chiffre", "1 caractère spécial (!@#$…)"].map((rule) => (
+            {["12 caractères minimum","1 majuscule et 1 minuscule","1 chiffre","1 caractère spécial (!@#$…)"].map(rule => (
               <div key={rule} className="flex items-center gap-1.5 text-muted-foreground">
                 <CheckCircle className="h-3 w-3 text-success" />{rule}
               </div>
             ))}
           </div>
-          <Button size="sm" className="gradient-primary text-primary-foreground text-xs">
-            <Lock className="h-3.5 w-3.5 mr-1.5" />Modifier le mot de passe
+          <Button size="sm" className="gradient-primary text-primary-foreground text-xs"
+            disabled={changingPwd || !currentPassword || !newPassword}
+            onClick={handleChangePassword}>
+            {changingPwd ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Lock className="h-3.5 w-3.5 mr-1.5" />}
+            Modifier le mot de passe
           </Button>
         </CardContent>
       </Card>
@@ -144,12 +165,9 @@ export default function SecurityPage() {
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Smartphone className="h-4 w-4" />Authentification à deux facteurs (2FA)
             </CardTitle>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className={mfaEnabled ? "text-[10px] bg-success/10 text-success" : "text-[10px] bg-warning/10 text-warning"}>
-                {mfaEnabled ? "Activé" : "Désactivé"}
-              </Badge>
-              <Switch checked={mfaEnabled} onCheckedChange={setMfaEnabled} />
-            </div>
+            <Badge variant="secondary" className={mfaEnabled ? "text-[10px] bg-success/10 text-success" : "text-[10px] bg-warning/10 text-warning"}>
+              {mfaEnabled ? "Activé" : "Désactivé"}
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -159,37 +177,33 @@ export default function SecurityPage() {
                 <CheckCircle className="h-5 w-5 text-success flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium">2FA actif via application TOTP</p>
-                  <p className="text-xs text-muted-foreground">Application : Authy · Activé le 15/01/2024</p>
+                  <p className="text-xs text-muted-foreground">Application Authy ou Google Authenticator</p>
                 </div>
               </div>
-
               <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" className="text-xs">
+                <Button variant="outline" size="sm" className="text-xs"
+                  onClick={() => toast({ title: "Bientôt disponible", description: "La reconfiguration du 2FA sera disponible prochainement." })}>
                   <QrCode className="h-3.5 w-3.5 mr-1.5" />Reconfigurer
                 </Button>
                 <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowBackupCodes(!showBackupCodes)}>
                   <Key className="h-3.5 w-3.5 mr-1.5" />Codes de secours
                 </Button>
               </div>
-
               {showBackupCodes && (
                 <div className="p-4 bg-muted/30 rounded-lg border border-border/60">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-xs font-semibold">Codes de secours (usage unique)</p>
-                    <Button variant="ghost" size="sm" className="text-xs h-6">
+                    <Button variant="ghost" size="sm" className="text-xs h-6"
+                      onClick={() => { navigator.clipboard.writeText(backupCodes.join("\n")); toast({ title: "Codes copiés" }); }}>
                       <Copy className="h-3 w-3 mr-1" />Copier tout
                     </Button>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
-                    {backupCodes.map((code) => (
-                      <code key={code} className="text-[10px] font-mono bg-background border border-border rounded px-2 py-1 text-center">
-                        {code}
-                      </code>
+                    {backupCodes.map(code => (
+                      <code key={code} className="text-[10px] font-mono bg-background border border-border rounded px-2 py-1 text-center">{code}</code>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    ⚠️ Gardez ces codes dans un endroit sûr. Chaque code ne peut être utilisé qu'une seule fois.
-                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-2">⚠️ Gardez ces codes dans un endroit sûr. Chaque code ne peut être utilisé qu'une seule fois.</p>
                 </div>
               )}
             </>
@@ -198,7 +212,8 @@ export default function SecurityPage() {
               <p className="text-xs text-muted-foreground">
                 La double authentification ajoute une couche de sécurité supplémentaire. En cas de vol de mot de passe, votre compte reste protégé.
               </p>
-              <Button size="sm" className="gradient-primary text-primary-foreground text-xs">
+              <Button size="sm" className="gradient-primary text-primary-foreground text-xs"
+                onClick={() => toast({ title: "Bientôt disponible", description: "La configuration du 2FA sera disponible prochainement." })}>
                 <Smartphone className="h-3.5 w-3.5 mr-1.5" />Configurer le 2FA maintenant
               </Button>
             </div>
@@ -225,10 +240,8 @@ export default function SecurityPage() {
           <div className="space-y-1.5">
             <Label className="text-xs">Délai d'expiration de session (heures)</Label>
             <div className="flex items-center gap-3">
-              <Input
-                type="number" value={sessionTimeout} onChange={(e) => setSessionTimeout(e.target.value)}
-                className="h-9 text-sm w-24" min="1" max="720"
-              />
+              <Input type="number" value={sessionTimeout} onChange={e => setSessionTimeout(e.target.value)}
+                className="h-9 text-sm w-24" min="1" max="720" />
               <p className="text-xs text-muted-foreground">Les sessions inactives expirent après ce délai.</p>
             </div>
           </div>
@@ -253,36 +266,28 @@ export default function SecurityPage() {
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Monitor className="h-4 w-4" />Sessions actives
             </CardTitle>
-            <Button variant="outline" size="sm" className="text-xs text-destructive border-destructive/30 hover:bg-destructive/5">
+            <Button variant="outline" size="sm" className="text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+              onClick={() => toast({ title: "Bientôt disponible", description: "La déconnexion forcée des sessions sera disponible prochainement." })}>
               <LogOut className="h-3.5 w-3.5 mr-1.5" />Déconnecter tout
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {sessions.map((session) => (
-            <div key={session.id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${session.current ? "border-primary/30 bg-primary/5" : "border-border/50 hover:bg-muted/20"}`}>
-              <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${session.current ? "gradient-primary" : "bg-muted"}`}>
-                <Monitor className={`h-4 w-4 ${session.current ? "text-primary-foreground" : "text-muted-foreground"}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium">{session.device}</p>
-                  {session.current && <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary">Actuelle</Badge>}
-                  {!session.trusted && <Badge variant="secondary" className="text-[9px] bg-warning/10 text-warning">Nouvel appareil</Badge>}
-                </div>
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-0.5">
-                  <span className="flex items-center gap-1"><MapPin className="h-2.5 w-2.5" />{session.location}</span>
-                  <span className="flex items-center gap-1"><Wifi className="h-2.5 w-2.5" />{session.ip}</span>
-                  <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" />{session.lastSeen}</span>
-                </div>
-              </div>
-              {!session.current && (
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0">
-                  <LogOut className="h-3.5 w-3.5" />
-                </Button>
-              )}
+        <CardContent>
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+            <div className="h-9 w-9 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+              <Monitor className="h-4 w-4 text-primary-foreground" />
             </div>
-          ))}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium">Session actuelle</p>
+                <Badge variant="secondary" className="text-[9px] bg-primary/10 text-primary">Actuelle</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">En cours</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-3 text-center">
+            La liste complète des sessions sera disponible prochainement.
+          </p>
         </CardContent>
       </Card>
 
@@ -306,7 +311,7 @@ export default function SecurityPage() {
                 </p>
               </div>
               <div className="space-y-2">
-                {ipList.map((ip) => (
+                {ipList.map(ip => (
                   <div key={ip} className="flex items-center justify-between p-2 rounded bg-muted/30 border border-border/50">
                     <code className="text-xs font-mono">{ip}</code>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive">
@@ -316,12 +321,8 @@ export default function SecurityPage() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <Input
-                  placeholder="192.168.1.0/24 ou 203.0.113.5"
-                  className="h-8 text-sm font-mono flex-1"
-                  value={newIp}
-                  onChange={(e) => setNewIp(e.target.value)}
-                />
+                <Input placeholder="192.168.1.0/24 ou 203.0.113.5" className="h-8 text-sm font-mono flex-1"
+                  value={newIp} onChange={e => setNewIp(e.target.value)} />
                 <Button size="sm" variant="outline" className="text-xs flex-shrink-0">Ajouter</Button>
               </div>
             </>
@@ -333,36 +334,28 @@ export default function SecurityPage() {
         </CardContent>
       </Card>
 
-      {/* Journaux de sécurité */}
+      {/* Activité récente */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Shield className="h-4 w-4" />Activité de sécurité récente
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-0">
-          {securityLog.map((entry, i) => {
-            const Icon = entry.icon;
-            return (
-              <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
-                <Icon className={`h-4 w-4 flex-shrink-0 mt-0.5 ${entry.color}`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium">{entry.event}</p>
-                  <p className="text-[10px] text-muted-foreground">{entry.detail}</p>
-                </div>
-                <span className="text-[10px] text-muted-foreground flex-shrink-0">{entry.time}</span>
-              </div>
-            );
-          })}
-          <Button variant="ghost" size="sm" className="w-full mt-2 text-xs text-primary">
-            Voir tous les journaux d'audit →
-          </Button>
+        <CardContent>
+          <div className="text-center py-6 text-muted-foreground">
+            <Shield className="h-6 w-6 mx-auto mb-2 opacity-30" />
+            <p className="text-xs mb-2">Consultez les journaux d'audit pour l'historique complet.</p>
+            <Button variant="outline" size="sm" className="text-xs" asChild>
+              <Link to="/app/settings/audit-logs">Voir les journaux d'audit →</Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm">Annuler</Button>
-        <Button size="sm" className="gradient-primary text-primary-foreground">
+        <Button size="sm" className="gradient-primary text-primary-foreground"
+          onClick={() => toast({ title: "Paramètres enregistrés", description: "Vos paramètres de sécurité ont été mis à jour." })}>
           <Save className="h-3.5 w-3.5 mr-1.5" />Enregistrer
         </Button>
       </div>

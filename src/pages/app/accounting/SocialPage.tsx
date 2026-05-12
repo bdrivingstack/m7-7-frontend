@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { socialContributions } from "@/lib/accounting-data";
 import { motion } from "framer-motion";
+import { useDemo } from "@/contexts/DemoContext";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -75,7 +76,37 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } 
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
 export default function SocialPage() {
+  const demo   = useDemo();
+  const isDemo = !!demo?.isDemo;
   const [periodFilter, setPeriodFilter] = useState<"all" | "T1 2024" | "T4 2023">("all");
+
+  if (!isDemo) {
+    return (
+      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+          <PiggyBank className="h-10 w-10 text-primary/50" />
+        </div>
+        <h2 className="text-xl font-display font-bold mb-2">Cotisations sociales</h2>
+        <p className="text-sm text-muted-foreground max-w-md mb-2">
+          Aucune cotisation enregistrée.
+        </p>
+        <p className="text-xs text-muted-foreground max-w-sm mb-6">
+          Connectez votre espace URSSAF depuis les paramètres pour suivre
+          et simuler vos cotisations sociales automatiquement.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.open("https://www.urssaf.fr", "_blank")}>
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />URSSAF.fr
+          </Button>
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <a href="/app/settings/urssaf">
+              <Building2 className="h-3.5 w-3.5 mr-1.5" />Connecter URSSAF
+            </a>
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
 
   const filtered = payments.filter((p) => {
     if (periodFilter !== "all" && p.period !== periodFilter) return false;

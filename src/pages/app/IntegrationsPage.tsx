@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import {
   Plug, Webhook, Key, Activity,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useApi } from "@/hooks/useApi";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -303,11 +304,37 @@ export default function IntegrationsPage() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<IntegrationCategory>("all");
   const [selected, setSelected] = useState<Integration | null>(null);
-  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>({
-    stripe: true, qonto: true, boursorama: true, slack: true, api: true,
-  });
 
-  const filtered = integrations.filter((i) => {
+  // Load real integrations from API
+  const { data: apiData } = useApi<any>("/api/settings/integrations");
+  const dbIntegrations: any[] = apiData?.data ?? [];
+
+  // Build a Set of integration IDs that are actually connected in DB
+  const connectedIds = useMemo(() => new Set(dbIntegrations.map((i: any) => {
+    const name = i.name?.toLowerCase() ?? "";
+    const type = i.type?.toLowerCase() ?? "";
+    if (type === "stripe" || name.includes("stripe")) return "stripe";
+    if (type === "qonto"  || name.includes("qonto"))  return "qonto";
+    if (name.includes("slack"))        return "slack";
+    if (name.includes("boursorama"))   return "boursorama";
+    if (name.includes("api"))          return "api";
+    return name;
+  })), [dbIntegrations]);
+
+  // Override status based on real DB data
+  const resolvedIntegrations = useMemo(() =>
+    integrations.map(i => ({
+      ...i,
+      status: connectedIds.has(i.id) ? "connected" as IntegrationStatus : (i.status === "connected" ? "available" : i.status),
+      lastSync: connectedIds.has(i.id) ? (dbIntegrations.find((d: any) => d.name?.toLowerCase().includes(i.id))?.lastSyncAt ?? undefined) : undefined,
+      syncCount: undefined,
+    })),
+    [connectedIds, dbIntegrations]
+  );
+
+  const [enabledMap, setEnabledMap] = useState<Record<string, boolean>>({});
+
+  const filtered = resolvedIntegrations.filter((i) => {
     if (category !== "all" && i.category !== category) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -316,8 +343,7 @@ export default function IntegrationsPage() {
     return true;
   });
 
-  const connected = integrations.filter((i) => i.status === "connected");
-  const popular = integrations.filter((i) => i.popular && i.status !== "connected").slice(0, 4);
+  const connected = resolvedIntegrations.filter((i) => i.status === "connected");
 
   const toggle = (id: string) =>
     setEnabledMap((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -349,7 +375,13 @@ export default function IntegrationsPage() {
           <Badge variant="secondary" className="text-[10px]">{connected.length}</Badge>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-          {connected.map((intg) => (
+          {connected.length === 0 ? (
+            <div className="col-span-full py-8 text-center text-muted-foreground text-sm">
+              <Plug className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p>Aucune intégration connectée</p>
+              <p className="text-xs mt-1">Configurez vos intégrations dans le marketplace ci-dessous.</p>
+            </div>
+          ) : connected.map((intg) => (
             <Card
               key={intg.id}
               className="border-success/20 hover:border-success/40 cursor-pointer transition-all hover:shadow-sm"
@@ -368,7 +400,7 @@ export default function IntegrationsPage() {
                     </div>
                   </div>
                   <Switch
-                    checked={enabledMap[intg.id] ?? false}
+                    checked={enabledMap[intg.id] ?? true}
                     onCheckedChange={() => toggle(intg.id)}
                     className="scale-75 flex-shrink-0"
                     onClick={(e) => e.stopPropagation()}
@@ -377,7 +409,6 @@ export default function IntegrationsPage() {
                 {intg.lastSync && (
                   <p className="text-[10px] text-muted-foreground">
                     Sync {new Date(intg.lastSync).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                    {intg.syncCount && ` · ${intg.syncCount} ce mois`}
                   </p>
                 )}
               </CardContent>

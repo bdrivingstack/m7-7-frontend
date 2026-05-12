@@ -7,7 +7,7 @@ import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search, Plus, Eye, Copy, Send, MoreHorizontal, Download,
-  ArrowRight, Loader2, RefreshCw,
+  ArrowRight, Loader2, RefreshCw, Upload,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -144,6 +144,9 @@ export default function QuotesListPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => toast({ title: "Bientôt disponible", description: "L'import de devis par CSV sera disponible prochainement." })}>
+            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer
           </Button>
           <Link to={`${prefix}/sales/quotes/new`}>
             <Button size="sm" className="gradient-primary text-primary-foreground">

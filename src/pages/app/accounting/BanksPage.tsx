@@ -2,13 +2,41 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
-import { Landmark, RefreshCw, Plus, Wifi, WifiOff, ExternalLink } from "lucide-react";
+import { Landmark, RefreshCw, Plus, Wifi, WifiOff, ExternalLink, Upload } from "lucide-react";
 import { bankAccounts } from "@/lib/accounting-data";
 import { motion } from "framer-motion";
+import { useDemo } from "@/contexts/DemoContext";
+import { Link } from "react-router-dom";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
 export default function BanksPage() {
+  const demo   = useDemo();
+  const isDemo = !!demo?.isDemo;
+
+  if (!isDemo) {
+    return (
+      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+          <Landmark className="h-10 w-10 text-primary/50" />
+        </div>
+        <h2 className="text-xl font-display font-bold mb-2">Comptes bancaires</h2>
+        <p className="text-sm text-muted-foreground max-w-md mb-2">
+          Aucun compte bancaire connecté.
+        </p>
+        <p className="text-xs text-muted-foreground max-w-sm mb-6">
+          Importez vos relevés bancaires CSV depuis la section Intelligence Comptable
+          pour catégoriser automatiquement vos transactions.
+        </p>
+        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+          <Link to="/app/accounting/intelligence">
+            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+          </Link>
+        </Button>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -21,14 +49,13 @@ export default function BanksPage() {
         </Button>
       </div>
 
-      {/* Total balance */}
       <Card className="border-primary/20">
         <CardContent className="p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 Solde total
-                <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés au BELVEDERE en temps réel." benefit="Cette vue consolidée vous donne une image instantanée de votre trésorerie disponible, tous comptes confondus." />
+                <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés." benefit="Vue instantanée de votre trésorerie disponible, tous comptes confondus." />
               </p>
               <p className="text-fluid-3xl font-display font-bold">
                 {fmt(bankAccounts.reduce((s, a) => s + a.balance, 0))}
@@ -42,7 +69,6 @@ export default function BanksPage() {
         </CardContent>
       </Card>
 
-      {/* Bank accounts */}
       <div className="grid gap-3">
         {bankAccounts.map(account => (
           <Card key={account.id} className="hover:shadow-md transition-shadow">
@@ -88,7 +114,6 @@ export default function BanksPage() {
         ))}
       </div>
 
-      {/* Info */}
       <Card className="bg-muted/30">
         <CardContent className="p-4 flex items-start gap-3">
           <div className="h-8 w-8 rounded-lg bg-info/10 flex items-center justify-center flex-shrink-0">

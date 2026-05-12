@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search, Plus, Eye, Copy, MoreHorizontal, Send,
-  Download, Loader2, RefreshCw,
+  Download, Loader2, RefreshCw, Upload,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -128,6 +128,9 @@ export default function InvoicesListPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => toast({ title: "Bientôt disponible", description: "L'import de factures par CSV sera disponible prochainement." })}>
+            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer
           </Button>
           <Link to="/app/sales/invoices/new">
             <Button size="sm" className="gradient-primary text-primary-foreground">

@@ -23,10 +23,12 @@ import {
   ResponsiveContainer, AreaChart, Area,
 } from "recharts";
 import {
-  payments, paymentAccounts, monthlyCashflow,
+  payments as demoPayments, paymentAccounts, monthlyCashflow,
   paymentMethodConfig, paymentStatusConfig, fmtEUR,
   type PaymentStatus, type PaymentMethod,
 } from "@/lib/payments-data";
+import { useApi } from "@/hooks/useApi";
+import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
@@ -44,6 +46,24 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
   const [syncing, setSyncing] = useState(false);
+
+  const { data: apiPayData, loading: payLoading, refetch: refetchPay } = useApi<any>("/api/payments?limit=100", { skip: isDemo });
+  const apiPayments: any[] = apiPayData?.data ?? [];
+
+  const payments: any[] = isDemo ? demoPayments : apiPayments.map((p: any) => ({
+    id:            p.id,
+    reference:     p.reference ?? p.id.slice(0, 8).toUpperCase(),
+    client:        p.customer?.name ?? p.customerName ?? "—",
+    clientId:      p.customerId,
+    description:   p.description ?? "Paiement",
+    date:          p.paidAt ?? p.createdAt,
+    method:        (p.method ?? "virement").toLowerCase() as PaymentMethod,
+    amount:        Number(p.amount ?? 0),
+    fees:          Number(p.fees ?? 0),
+    status:        (p.status ?? "completed").toLowerCase() as PaymentStatus,
+    invoiceNumber: p.invoice?.number,
+    stripeId:      p.stripePaymentId,
+  }));
 
   const handleSync = async () => {
     if (isDemo) {
@@ -106,7 +126,7 @@ export default function PaymentsPage() {
     }
   };
 
-  const filtered = payments.filter((p) => {
+  const filtered = (payments as any[]).filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     if (methodFilter !== "all" && p.method !== methodFilter) return false;
     if (search) {
@@ -117,16 +137,16 @@ export default function PaymentsPage() {
   });
 
   // KPIs
-  const totalReceived = payments.filter((p) => p.status === "completed").reduce((s, p) => s + p.amount, 0);
-  const totalPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
-  const totalFees = payments.filter((p) => p.fees && p.fees > 0).reduce((s, p) => s + (p.fees ?? 0), 0);
-  const totalAccounts = paymentAccounts.reduce((s, a) => s + a.balance, 0);
-  const stripePending = paymentAccounts.find((a) => a.type === "stripe")?.pending ?? 0;
+  const totalReceived  = (payments as any[]).filter((p) => p.status === "completed").reduce((s: number, p: any) => s + p.amount, 0);
+  const totalPending   = (payments as any[]).filter((p) => p.status === "pending").reduce((s: number, p: any) => s + p.amount, 0);
+  const totalFees      = (payments as any[]).filter((p) => p.fees && p.fees > 0).reduce((s: number, p: any) => s + (p.fees ?? 0), 0);
+  const totalAccounts  = isDemo ? paymentAccounts.reduce((s, a) => s + a.balance, 0) : 0;
+  const stripePending  = isDemo ? (paymentAccounts.find((a) => a.type === "stripe")?.pending ?? 0) : 0;
 
-  // Monthly stats
-  const currentMonthIn = monthlyCashflow[monthlyCashflow.length - 1].in;
-  const prevMonthIn = monthlyCashflow[monthlyCashflow.length - 2].in;
-  const growthPct = Math.round(((currentMonthIn - prevMonthIn) / prevMonthIn) * 100);
+  // Monthly stats (démo uniquement)
+  const currentMonthIn = isDemo ? monthlyCashflow[monthlyCashflow.length - 1].in : 0;
+  const prevMonthIn    = isDemo ? monthlyCashflow[monthlyCashflow.length - 2].in : 1;
+  const growthPct      = Math.round(((currentMonthIn - prevMonthIn) / prevMonthIn) * 100);
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
@@ -151,48 +171,50 @@ export default function PaymentsPage() {
         </div>
       </motion.div>
 
-      {/* Comptes bancaires */}
-      <motion.div variants={item}>
-        <div className="flex items-center gap-2 mb-3">
-          <Landmark className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Comptes connectés</h2>
-          <span className="text-xs text-muted-foreground ml-auto">Total : <span className="font-bold text-foreground">{fmtEUR(totalAccounts)}</span></span>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-3">
-          {paymentAccounts.map((acc) => (
-            <Card key={acc.id} className={`border-border/50 ${acc.type === "stripe" ? "border-violet-500/20" : ""}`}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{acc.icon}</span>
-                    <div>
-                      <p className="font-medium text-sm">{acc.name}</p>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <div className="h-1.5 w-1.5 rounded-full bg-success" />
-                        <span className="text-[10px] text-muted-foreground">
-                          Synchro {new Date(acc.lastSync).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+      {/* Comptes bancaires — démo uniquement */}
+      {isDemo && (
+        <motion.div variants={item}>
+          <div className="flex items-center gap-2 mb-3">
+            <Landmark className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Comptes connectés</h2>
+            <span className="text-xs text-muted-foreground ml-auto">Total : <span className="font-bold text-foreground">{fmtEUR(totalAccounts)}</span></span>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            {paymentAccounts.map((acc) => (
+              <Card key={acc.id} className={`border-border/50 ${acc.type === "stripe" ? "border-violet-500/20" : ""}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{acc.icon}</span>
+                      <div>
+                        <p className="font-medium text-sm">{acc.name}</p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="h-1.5 w-1.5 rounded-full bg-success" />
+                          <span className="text-[10px] text-muted-foreground">
+                            Synchro {new Date(acc.lastSync).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <div>
-                  <p className="text-fluid-2xl font-display font-bold">{fmtEUR(acc.balance)}</p>
-                  {acc.pending > 0 && (
-                    <p className="text-xs text-warning mt-0.5">
-                      <Clock className="h-3 w-3 inline mr-1" />
-                      {fmtEUR(acc.pending)} en attente
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </motion.div>
+                  <div>
+                    <p className="text-fluid-2xl font-display font-bold">{fmtEUR(acc.balance)}</p>
+                    {acc.pending > 0 && (
+                      <p className="text-xs text-warning mt-0.5">
+                        <Clock className="h-3 w-3 inline mr-1" />
+                        {fmtEUR(acc.pending)} en attente
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* KPIs */}
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -204,7 +226,7 @@ export default function PaymentsPage() {
               <InfoTooltip title="Total encaissé" description="Somme de tous les paiements avec statut 'complété' sur l'ensemble de la période." formula="Σ montants des paiements dont statut = completed" benefit="Reflète la trésorerie réellement reçue, indépendamment des factures émises." />
             </div>
             <p className="text-2xl font-display font-bold text-success">{fmtEUR(totalReceived)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{payments.filter(p => p.status === "completed").length} transactions</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{(payments as any[]).filter((p: any) => p.status === "completed").length} transactions</p>
           </CardContent>
         </Card>
         <Card className="border-warning/20">
@@ -215,7 +237,7 @@ export default function PaymentsPage() {
               <InfoTooltip title="Paiements en attente" description="Paiements initiés mais pas encore confirmés — chèques en cours d'encaissement, virements en transit, paiements Stripe non capturés." benefit="À surveiller régulièrement pour détecter les échecs de paiement ou les délais bancaires anormaux." />
             </div>
             <p className="text-2xl font-display font-bold text-warning">{fmtEUR(totalPending)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{payments.filter(p => p.status === "pending").length} paiement(s)</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{(payments as any[]).filter((p: any) => p.status === "pending").length} paiement(s)</p>
           </CardContent>
         </Card>
         <Card>
@@ -239,7 +261,7 @@ export default function PaymentsPage() {
               <InfoTooltip title="Frais bancaires & Stripe" description="Total des commissions prélevées par Stripe et les organismes bancaires sur vos transactions par carte." formula="Σ frais de chaque transaction (généralement 1.4% + 0.25€ pour les cartes EU)" benefit="Ces frais sont déductibles de votre résultat imposable. Pensez à les catégoriser en comptabilité." />
             </div>
             <p className="text-fluid-2xl font-display font-bold">{fmtEUR(totalFees)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">~{((totalFees / totalReceived) * 100).toFixed(1)}% du CA encaissé</p>
+            <p className="text-xs text-muted-foreground mt-0.5">~{totalReceived > 0 ? ((totalFees / totalReceived) * 100).toFixed(1) : "0.0"}% du CA encaissé</p>
           </CardContent>
         </Card>
       </motion.div>
@@ -254,10 +276,17 @@ export default function PaymentsPage() {
         {/* Transactions */}
         <TabsContent value="transactions" className="space-y-4 mt-4">
 
+          {/* Chargement */}
+          {!isDemo && payLoading && (
+            <div className="py-8 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />Chargement des paiements…
+            </div>
+          )}
+
           {/* Alertes */}
-          {payments.some(p => p.status === "failed" || p.status === "disputed") && (
+          {!payLoading && (payments as any[]).some((p: any) => p.status === "failed" || p.status === "disputed") && (
             <div className="space-y-2">
-              {payments.filter(p => p.status === "failed").map(p => (
+              {(payments as any[]).filter((p: any) => p.status === "failed").map((p: any) => (
                 <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm">
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
                   <div className="flex-1">
@@ -293,7 +322,7 @@ export default function PaymentsPage() {
                 >
                   {s === "all" ? "Tous" : paymentStatusConfig[s].label}
                   {s !== "all" && (
-                    <span className="ml-1 opacity-70">({payments.filter(p => p.status === s).length})</span>
+                    <span className="ml-1 opacity-70">({(payments as any[]).filter((p: any) => p.status === s).length})</span>
                   )}
                 </Button>
               ))}
@@ -320,8 +349,8 @@ export default function PaymentsPage() {
                   </thead>
                   <tbody>
                     {filtered.map((p) => {
-                      const mc = paymentMethodConfig[p.method];
-                      const sc = paymentStatusConfig[p.status];
+                      const mc = paymentMethodConfig[p.method as PaymentMethod] ?? paymentMethodConfig["virement"];
+                      const sc = paymentStatusConfig[p.status as PaymentStatus] ?? paymentStatusConfig["completed"];
                       return (
                         <motion.tr
                           key={p.id}
@@ -411,10 +440,10 @@ export default function PaymentsPage() {
                     })}
                   </tbody>
                 </table>
-                {filtered.length === 0 && (
+                {!payLoading && filtered.length === 0 && (
                   <div className="text-center py-12 text-muted-foreground">
                     <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">Aucun paiement trouvé</p>
+                    <p className="text-sm">{isDemo ? "Aucun paiement trouvé" : "Aucun paiement enregistré"}</p>
                   </div>
                 )}
               </div>
@@ -520,10 +549,10 @@ export default function PaymentsPage() {
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {(["virement", "stripe", "carte", "prelevement", "cheque"] as PaymentMethod[]).map((method) => {
               const mc = paymentMethodConfig[method];
-              const methodPayments = payments.filter((p) => p.method === method && p.status === "completed");
-              const total = methodPayments.reduce((s, p) => s + p.amount, 0);
-              const fees = methodPayments.reduce((s, p) => s + (p.fees ?? 0), 0);
-              const pct = total > 0 ? Math.round((total / totalReceived) * 100) : 0;
+              const methodPayments = (payments as any[]).filter((p: any) => p.method === method && p.status === "completed");
+              const total = methodPayments.reduce((s: number, p: any) => s + p.amount, 0);
+              const fees  = methodPayments.reduce((s: number, p: any) => s + (p.fees ?? 0), 0);
+              const pct   = total > 0 && totalReceived > 0 ? Math.round((total / totalReceived) * 100) : 0;
 
               if (methodPayments.length === 0 && method !== "virement") return null;
 
@@ -559,8 +588,8 @@ export default function PaymentsPage() {
             }).filter(Boolean)}
           </div>
 
-          {/* Stripe connect panel */}
-          <Card className="border-violet-500/20 bg-violet-500/5">
+          {/* Stripe connect panel — démo uniquement */}
+          {isDemo && <Card className="border-violet-500/20 bg-violet-500/5">
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -589,7 +618,7 @@ export default function PaymentsPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card>}
         </TabsContent>
       </Tabs>
     </motion.div>

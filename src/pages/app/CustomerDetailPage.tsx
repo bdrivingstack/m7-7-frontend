@@ -13,7 +13,7 @@ import {
   ArrowLeft, Mail, Phone, MapPin, FileText, Plus,
   Edit, ExternalLink, TrendingUp, Clock, AlertTriangle,
   CheckCircle, Building2, User, Star, MoreHorizontal,
-  MessageSquare, Shield, Zap, Loader2, Save,
+  MessageSquare, Shield, Zap, Loader2, Save, Lock,
 } from "lucide-react";
 import {
   customers, statusConfig, riskConfig, paymentTermsConfig,
@@ -125,14 +125,20 @@ export default function CustomerDetailPage() {
     setShowEdit(true);
   };
 
+  const isCompany = !!customer?.isCompany;
+
   const handleSaveEdit = async () => {
     if (!editForm.name?.trim()) return;
     setEditSaving(true);
+    // Les champs légaux d'une société (SIRET, TVA, raison sociale) ne sont
+    // jamais envoyés manuellement — ils proviennent uniquement de l'autocomplétion SIREN.
+    const { siret, tvaNumber, ..._editableFields } = editForm;
+    const payload = isCompany ? _editableFields : editForm;
     try {
       const res = await fetch(`${API_BASE}/api/customers/${id}`, {
         method: "PATCH", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         toast({ title: "Client mis à jour", description: `${editForm.name} a été modifié avec succès.` });
@@ -728,13 +734,26 @@ export default function CustomerDetailPage() {
             <DialogTitle>Modifier le client</DialogTitle>
           </DialogHeader>
 
+          {/* Bannière info pour les sociétés */}
+          {isCompany && (
+            <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <Lock className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+              <span>Les informations légales (raison sociale, SIRET, N° TVA) sont verrouillées. Elles proviennent de l'autocomplétion SIREN et ne peuvent pas être modifiées manuellement.</span>
+            </div>
+          )}
+
           <div className="space-y-3 py-1">
+            {/* Raison sociale — verrouillée pour les sociétés */}
             <div className="space-y-1">
-              <Label className="text-xs">Nom / Raison sociale *</Label>
+              <Label className="text-xs flex items-center gap-1">
+                Nom / Raison sociale {!isCompany && <span className="text-destructive">*</span>}
+                {isCompany && <Lock className="h-3 w-3 text-muted-foreground" />}
+              </Label>
               <Input
                 value={editForm.name ?? ""}
-                onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
-                className="h-8 text-sm"
+                onChange={e => !isCompany && setEditForm(p => ({ ...p, name: e.target.value }))}
+                readOnly={isCompany}
+                className={`h-8 text-sm ${isCompany ? "bg-muted/50 cursor-not-allowed text-muted-foreground select-none" : ""}`}
               />
             </div>
 
@@ -758,23 +777,30 @@ export default function CustomerDetailPage() {
               </div>
             </div>
 
+            {/* SIRET + N° TVA — toujours verrouillés pour les sociétés */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">SIRET</Label>
+                <Label className="text-xs flex items-center gap-1">
+                  SIRET {isCompany && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </Label>
                 <Input
                   value={editForm.siret ?? ""}
-                  onChange={e => setEditForm(p => ({ ...p, siret: e.target.value }))}
+                  readOnly={isCompany}
+                  onChange={e => !isCompany && setEditForm(p => ({ ...p, siret: e.target.value }))}
                   placeholder="12345678900010"
-                  className="h-8 text-sm"
+                  className={`h-8 text-sm font-mono ${isCompany ? "bg-muted/50 cursor-not-allowed text-muted-foreground" : ""}`}
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">N° TVA</Label>
+                <Label className="text-xs flex items-center gap-1">
+                  N° TVA {isCompany && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </Label>
                 <Input
                   value={editForm.tvaNumber ?? ""}
-                  onChange={e => setEditForm(p => ({ ...p, tvaNumber: e.target.value }))}
+                  readOnly={isCompany}
+                  onChange={e => !isCompany && setEditForm(p => ({ ...p, tvaNumber: e.target.value }))}
                   placeholder="FR12345678901"
-                  className="h-8 text-sm"
+                  className={`h-8 text-sm font-mono ${isCompany ? "bg-muted/50 cursor-not-allowed text-muted-foreground" : ""}`}
                 />
               </div>
             </div>
