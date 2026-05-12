@@ -14,7 +14,7 @@ import {
 import {
   Search, Plus, MoreHorizontal, Eye, Mail, FileText,
   TrendingUp, AlertTriangle, Users, Download,
-  ExternalLink, Loader2, RefreshCw, X, Building2,
+  ExternalLink, Loader2, RefreshCw, X, Building2, User,
 } from "lucide-react";
 import { useApi, API_BASE } from "@/hooks/useApi";
 import { motion } from "framer-motion";
@@ -79,6 +79,9 @@ export default function CustomersListPage() {
   const [newCustomer,    setNewCustomer]    = useState(EMPTY_CUSTOMER);
   const [companyLocked,  setCompanyLocked]  = useState(false);
   const [saving,         setSaving]         = useState(false);
+  const [profileType,    setProfileType]    = useState<"entreprise" | "particulier">("entreprise");
+  const [firstName,      setFirstName]      = useState("");
+  const [lastName,       setLastName]       = useState("");
 
   // ── SIREN autocomplete ─────────────────────────────────────────────────────
   const [sirenQuery,    setSirenQuery]    = useState("");
@@ -221,22 +224,45 @@ export default function CustomersListPage() {
     setSirenQuery("");
     setSirenResults([]);
     setShowSirenDrop(false);
+    setProfileType("entreprise");
+    setFirstName("");
+    setLastName("");
   };
 
   // ── Créer client ──────────────────────────────────────────────────────────
   const handleCreateCustomer = async () => {
-    if (!newCustomer.name.trim()) return;
+    const isParticulier = profileType === "particulier";
+    if (isParticulier ? !firstName.trim() : !newCustomer.name.trim()) return;
+
+    const clientName = isParticulier
+      ? [firstName.trim(), lastName.trim()].filter(Boolean).join(" ")
+      : newCustomer.name.trim();
+
+    const body = isParticulier
+      ? {
+          name:      clientName,
+          firstName: firstName.trim(),
+          lastName:  lastName.trim(),
+          isCompany: false,
+          email:     newCustomer.email,
+          phone:     newCustomer.phone,
+          address:   newCustomer.address,
+          city:      newCustomer.city,
+          postalCode: newCustomer.postalCode,
+        }
+      : { ...newCustomer, isCompany: true };
+
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/customers`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCustomer),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const data = await res.json();
-        toast({ title: "Client créé", description: `${newCustomer.name} a été ajouté avec succès.` });
+        toast({ title: "Client créé", description: `${clientName} a été ajouté avec succès.` });
         closeModal();
         refetch();
         const createdId = data?.data?.id ?? data?.id;
@@ -516,119 +542,177 @@ export default function CustomersListPage() {
 
           <div className="space-y-3 py-1">
 
-            {/* ── Recherche SIREN ──────────────────────────────── */}
-            <div className="relative">
-              <Label className="text-xs mb-1.5 block text-muted-foreground">
-                Rechercher une entreprise
-              </Label>
-              <div className="relative">
-                {sirenLoading
-                  ? <Loader2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground animate-spin" />
-                  : <Search   className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />}
-                <Input
-                  placeholder="Nom, SIREN… ex : Belvedere Digital"
-                  className="pl-8 pr-8 h-8 text-sm"
-                  value={sirenQuery}
-                  onChange={e => { setSirenQuery(e.target.value); searchSiren(e.target.value); }}
-                  onFocus={() => sirenResults.length > 0 && setShowSirenDrop(true)}
-                  onBlur={() => setTimeout(() => setShowSirenDrop(false), 200)}
-                />
-                {sirenQuery && (
-                  <button
-                    type="button"
-                    onClick={() => { setSirenQuery(""); setSirenResults([]); setShowSirenDrop(false); }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
+            {/* ── Switch Entreprise / Particulier ──────────────── */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setProfileType("entreprise")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors ${
+                  profileType === "entreprise"
+                    ? "gradient-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Building2 className="h-4 w-4" />
+                Entreprise
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfileType("particulier")}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium transition-colors border-l border-border ${
+                  profileType === "particulier"
+                    ? "gradient-primary text-primary-foreground"
+                    : "bg-card text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <User className="h-4 w-4" />
+                Particulier
+              </button>
+            </div>
 
-              {/* Dropdown résultats */}
-              {showSirenDrop && sirenResults.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                  {sirenResults.slice(0, 6).map((c, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors border-b border-border/40 last:border-0 flex items-start gap-2.5"
-                      onMouseDown={() => selectCompany(c)}
-                    >
-                      <div className="h-7 w-7 rounded-md gradient-primary flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Building2 className="h-3.5 w-3.5 text-primary-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {c.nom_complet || c.nom_raison_sociale}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          SIREN {c.siren}{c.siege?.commune ? ` · ${c.siege.commune}` : ""}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+            {/* ── Bloc Entreprise ───────────────────────────────── */}
+            {profileType === "entreprise" && (
+              <>
+                {/* Recherche SIREN */}
+                <div className="relative">
+                  <Label className="text-xs mb-1.5 block text-muted-foreground">
+                    Rechercher une entreprise
+                  </Label>
+                  <div className="relative">
+                    {sirenLoading
+                      ? <Loader2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                      : <Search   className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />}
+                    <Input
+                      placeholder="Nom, SIREN… ex : Belvedere Digital"
+                      className="pl-8 pr-8 h-8 text-sm"
+                      value={sirenQuery}
+                      onChange={e => { setSirenQuery(e.target.value); searchSiren(e.target.value); }}
+                      onFocus={() => sirenResults.length > 0 && setShowSirenDrop(true)}
+                      onBlur={() => setTimeout(() => setShowSirenDrop(false), 200)}
+                    />
+                    {sirenQuery && (
+                      <button
+                        type="button"
+                        onClick={() => { setSirenQuery(""); setSirenResults([]); setShowSirenDrop(false); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown résultats */}
+                  {showSirenDrop && sirenResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                      {sirenResults.slice(0, 6).map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className="w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors border-b border-border/40 last:border-0 flex items-start gap-2.5"
+                          onMouseDown={() => selectCompany(c)}
+                        >
+                          <div className="h-7 w-7 rounded-md gradient-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Building2 className="h-3.5 w-3.5 text-primary-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {c.nom_complet || c.nom_raison_sociale}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              SIREN {c.siren}{c.siege?.commune ? ` · ${c.siege.commune}` : ""}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* ── Raison sociale ────────────────────────────────── */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Nom / Raison sociale *</Label>
-                {companyLocked && (
-                  <button
-                    type="button"
-                    onClick={resetCompany}
-                    className="text-[10px] text-primary hover:underline transition-colors"
-                  >
-                    Changer d'entreprise
-                  </button>
-                )}
-              </div>
-              <Input
-                value={newCustomer.name}
-                onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, name: e.target.value }))}
-                readOnly={companyLocked}
-                placeholder={companyLocked ? "" : "ACME SARL"}
-                className={`h-8 text-sm transition-colors ${companyLocked ? lockedCls : ""}`}
-              />
-            </div>
+                {/* Raison sociale */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Raison sociale *</Label>
+                    {companyLocked && (
+                      <button
+                        type="button"
+                        onClick={resetCompany}
+                        className="text-[10px] text-primary hover:underline transition-colors"
+                      >
+                        Changer d'entreprise
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    value={newCustomer.name}
+                    onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, name: e.target.value }))}
+                    readOnly={companyLocked}
+                    placeholder={companyLocked ? "" : "ACME SARL"}
+                    className={`h-8 text-sm transition-colors ${companyLocked ? lockedCls : ""}`}
+                  />
+                </div>
 
-            {/* ── SIREN / SIRET / TVA ───────────────────────────── */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">SIREN</Label>
-                <Input
-                  value={newCustomer.siren}
-                  onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, siren: e.target.value }))}
-                  readOnly={companyLocked}
-                  placeholder="123456789"
-                  className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">SIRET</Label>
-                <Input
-                  value={newCustomer.siret}
-                  onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, siret: e.target.value }))}
-                  readOnly={companyLocked}
-                  placeholder="12345678900010"
-                  className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">N° TVA</Label>
-                <Input
-                  value={newCustomer.tvaNumber}
-                  onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, tvaNumber: e.target.value }))}
-                  readOnly={companyLocked}
-                  placeholder="FR12345678901"
-                  className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
-                />
-              </div>
-            </div>
+                {/* SIREN / SIRET / TVA */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">SIREN</Label>
+                    <Input
+                      value={newCustomer.siren}
+                      onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, siren: e.target.value }))}
+                      readOnly={companyLocked}
+                      placeholder="123456789"
+                      className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">SIRET</Label>
+                    <Input
+                      value={newCustomer.siret}
+                      onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, siret: e.target.value }))}
+                      readOnly={companyLocked}
+                      placeholder="12345678900010"
+                      className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">N° TVA</Label>
+                    <Input
+                      value={newCustomer.tvaNumber}
+                      onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, tvaNumber: e.target.value }))}
+                      readOnly={companyLocked}
+                      placeholder="FR12345678901"
+                      className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
-            {/* ── Email / Téléphone ─────────────────────────────── */}
+            {/* ── Bloc Particulier ──────────────────────────────── */}
+            {profileType === "particulier" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Prénom *</Label>
+                  <Input
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    placeholder="Jean"
+                    className="h-8 text-sm"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Nom</Label>
+                  <Input
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    placeholder="Dupont"
+                    className="h-8 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── Email / Téléphone (commun) ────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Email</Label>
@@ -651,28 +735,28 @@ export default function CustomersListPage() {
               </div>
             </div>
 
-            {/* ── Adresse ──────────────────────────────────────── */}
+            {/* ── Adresse (commune) ─────────────────────────────── */}
             <div className="space-y-1">
               <Label className="text-xs">Adresse</Label>
               <Input
                 value={newCustomer.address}
                 onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, address: e.target.value }))}
-                readOnly={companyLocked}
+                readOnly={profileType === "entreprise" && companyLocked}
                 placeholder="12 rue de la Paix"
-                className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                className={`h-8 text-sm ${profileType === "entreprise" && companyLocked ? lockedCls : ""}`}
               />
             </div>
 
-            {/* ── Ville / Code postal ───────────────────────────── */}
+            {/* ── Ville / Code postal (commun) ──────────────────── */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Ville</Label>
                 <Input
                   value={newCustomer.city}
                   onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, city: e.target.value }))}
-                  readOnly={companyLocked}
+                  readOnly={profileType === "entreprise" && companyLocked}
                   placeholder="Paris"
-                  className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                  className={`h-8 text-sm ${profileType === "entreprise" && companyLocked ? lockedCls : ""}`}
                 />
               </div>
               <div className="space-y-1">
@@ -680,24 +764,23 @@ export default function CustomersListPage() {
                 <Input
                   value={newCustomer.postalCode}
                   onChange={e => !companyLocked && setNewCustomer(p => ({ ...p, postalCode: e.target.value }))}
-                  readOnly={companyLocked}
+                  readOnly={profileType === "entreprise" && companyLocked}
                   placeholder="75001"
-                  className={`h-8 text-sm ${companyLocked ? lockedCls : ""}`}
+                  className={`h-8 text-sm ${profileType === "entreprise" && companyLocked ? lockedCls : ""}`}
                 />
               </div>
             </div>
 
-            {/* ── Note ─────────────────────────────────────────── */}
-            <p className="text-[10px] text-muted-foreground pt-1">
-              Entreprise introuvable ?{" "}
-              <a
-                href="mailto:contact@m7sept.fr"
-                className="text-primary hover:underline"
-              >
-                Contactez notre équipe
-              </a>
-              {" "}— nous mettrons à jour vos informations manuellement.
-            </p>
+            {/* ── Note (entreprise seulement) ───────────────────── */}
+            {profileType === "entreprise" && (
+              <p className="text-[10px] text-muted-foreground pt-1">
+                Entreprise introuvable ?{" "}
+                <a href="mailto:contact@m7sept.fr" className="text-primary hover:underline">
+                  Contactez notre équipe
+                </a>
+                {" "}— nous mettrons à jour vos informations manuellement.
+              </p>
+            )}
 
           </div>
 
@@ -709,7 +792,7 @@ export default function CustomersListPage() {
               size="sm"
               className="gradient-primary text-primary-foreground"
               onClick={handleCreateCustomer}
-              disabled={saving || !newCustomer.name.trim()}
+              disabled={saving || (profileType === "entreprise" ? !newCustomer.name.trim() : !firstName.trim())}
             >
               {saving
                 ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />

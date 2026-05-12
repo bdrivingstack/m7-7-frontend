@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,45 +7,110 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Mail, Phone, MapPin, FileText, Plus,
   Edit, ExternalLink, TrendingUp, Clock, AlertTriangle,
-  CheckCircle, Building2, User, Send, Star, MoreHorizontal,
-  CreditCard, MessageSquare, Shield, Zap,
+  CheckCircle, Building2, User, Star, MoreHorizontal,
+  MessageSquare, Shield, Zap,
 } from "lucide-react";
 import {
   customers, statusConfig, riskConfig, paymentTermsConfig,
   activityTypeConfig, fmtEUR,
+  type CustomerStatus, type RiskScore, type PaymentTerms,
 } from "@/lib/customers-data";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { motion } from "framer-motion";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { useDemo } from "@/contexts/DemoContext";
-import { useApi } from "@/hooks/useApi";
+import { useApi, API_BASE } from "@/hooks/useApi";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
+
+// ─── Fallbacks null-safe ─────────────────────────────────────────────────────
+const scFallback = { label: "—", color: "bg-muted text-muted-foreground" };
+const rcFallback = { label: "—", color: "text-muted-foreground", bg: "bg-muted/50" };
+
+// ─── Normalise un client API (champs plats) vers la shape attendue par l'UI ──
+function normalizeApiCustomer(raw: any) {
+  const contactDisplayName = (c: any): string =>
+    [c.firstName, c.lastName].filter(Boolean).join(" ") || c.name || "—";
+
+  const notesArr = Array.isArray(raw.notes)
+    ? raw.notes
+    : raw.notes
+      ? [{ id: "note-0", text: raw.notes, date: raw.updatedAt ?? raw.createdAt, by: "Système" }]
+      : [];
+
+  return {
+    ...raw,
+    // Type entreprise / particulier
+    type: raw.isCompany ? "company" : "individual",
+    // Champ TVA
+    vatNumber: raw.tvaNumber ?? "",
+    // Adresse plate → objet imbriqué
+    billingAddress: {
+      line1:   raw.address   ?? "",
+      line2:   raw.address2  ?? undefined,
+      city:    raw.city      ?? "",
+      zip:     raw.postalCode ?? "",
+      country: raw.country   ?? "FR",
+    },
+    // Contacts : ajouter un champ name calculé
+    contacts: (raw.contacts ?? []).map((c: any) => ({
+      ...c,
+      name: contactDisplayName(c),
+    })),
+    // Stats absentes de l'API → 0 par défaut
+    totalRevenue:         raw.totalRevenue         ?? 0,
+    totalInvoices:        raw._count?.invoices      ?? 0,
+    totalPaid:            raw.totalPaid             ?? 0,
+    totalUnpaid:          raw.totalUnpaid           ?? 0,
+    averagePaymentDelay:  raw.averagePaymentDelay   ?? 0,
+    lastPaymentDate:      raw.lastPaymentDate       ?? null,
+    // Portail
+    portalAccess: raw.portalEnabled ?? false,
+    // Status / risk / paymentTerms absents de l'API → valeurs par défaut
+    status:       raw.status       ?? "active",
+    riskScore:    raw.riskScore    ?? "low",
+    paymentTerms: raw.paymentTerms ?? "30days",
+    // Activity et notes normalisés
+    activity: raw.activity ?? [],
+    notes:    notesArr,
+    // Tags
+    tags: raw.tags ?? [],
+  };
+}
 
 export default function CustomerDetailPage() {
   const { id }  = useParams<{ id: string }>();
   const demo    = useDemo();
   const isDemo  = !!demo?.isDemo;
 
-  // En mode réel, charger depuis l'API ; en démo, utiliser les données mock
-  const { data: apiCustomer } = useApi<any>(`/api/customers/${id}`, { skip: isDemo });
-  const mockMatch = customers.find((c) => c.id === id);
-  const customer  = isDemo ? mockMatch : (apiCustomer?.data ?? apiCustomer ?? mockMatch);
-
-  // ── État URSSAF / Avance immédiate crédit d'impôt ─────────────────────────
-  const [urssafEnabled, setUrssafEnabled] = useState<boolean>(
-    (customer as any)?.urssafSapEnabled ?? false
+  const { data: apiResponse, loading } = useApi<{ data: any }>(
+    `/api/customers/${id}`,
+    { skip: isDemo },
   );
-  const [urssafSaving, setUrssafSaving] = useState(false);
+
+  const mockMatch = customers.find((c) => c.id === id);
+
+  const customer = isDemo
+    ? mockMatch ?? null
+    : apiResponse?.data ? normalizeApiCustomer(apiResponse.data) : null;
+
+  // ── État URSSAF ──────────────────────────────────────────────────────────
+  const [urssafEnabled, setUrssafEnabled] = useState<boolean>(false);
+  const [urssafSaving,  setUrssafSaving]  = useState(false);
+
+  useEffect(() => {
+    if (customer) setUrssafEnabled(!!(customer as any).urssafSapEnabled);
+  }, [customer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUrssafToggle = async (enabled: boolean) => {
     setUrssafEnabled(enabled);
     setUrssafSaving(true);
     try {
-      const res = await fetch(`/api/customers/${id}`, {
+      const res = await fetch(`${API_BASE}/api/customers/${id}`, {
         method: "PATCH", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ urssafSapEnabled: enabled }),
@@ -64,15 +129,22 @@ export default function CustomerDetailPage() {
           description: errData.message ?? "Impossible de mettre à jour le paramètre URSSAF.",
           variant: "destructive",
         });
-        setUrssafEnabled(!enabled); // Revert
+        setUrssafEnabled(!enabled);
       }
     } catch {
       toast({ title: "Erreur réseau", description: "Impossible de contacter le serveur.", variant: "destructive" });
-      setUrssafEnabled(!enabled); // Revert
+      setUrssafEnabled(!enabled);
     } finally {
       setUrssafSaving(false);
     }
   };
+
+  // ── Garde chargement ─────────────────────────────────────────────────────
+  if (!isDemo && loading) {
+    return (
+      <div className="p-6 text-center text-muted-foreground text-sm">Chargement…</div>
+    );
+  }
 
   if (!customer) {
     return (
@@ -85,9 +157,9 @@ export default function CustomerDetailPage() {
     );
   }
 
-  const sc = statusConfig[customer.status];
-  const rc = riskConfig[customer.riskScore];
-  const pt = paymentTermsConfig[customer.paymentTerms];
+  const sc = statusConfig[customer.status as CustomerStatus] ?? scFallback;
+  const rc = riskConfig[customer.riskScore as RiskScore]    ?? rcFallback;
+  const pt = paymentTermsConfig[customer.paymentTerms as PaymentTerms] ?? customer.paymentTerms ?? "—";
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
@@ -101,7 +173,7 @@ export default function CustomerDetailPage() {
             </Button>
           </Link>
           <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-            {customer.name.substring(0, 2).toUpperCase()}
+            {(customer.name ?? "?").substring(0, 2).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -171,7 +243,6 @@ export default function CustomerDetailPage() {
                 🔗 API URSSAF en attente de connexion
               </span>
             )}
-            {/* Switch */}
             <button
               type="button"
               disabled={urssafSaving}
@@ -197,8 +268,8 @@ export default function CustomerDetailPage() {
               <span className="text-xs text-muted-foreground">CA total</span>
               <InfoTooltip title="CA total client" description="Chiffre d'affaires cumulé généré par ce client depuis le début de la relation commerciale." formula="Σ montants HT de toutes les factures payées de ce client" benefit="Identifier vos clients les plus rentables pour prioriser votre relation commerciale." />
             </div>
-            <p className="text-fluid-xl font-display font-bold">{fmtEUR(customer.totalRevenue)}</p>
-            <p className="text-xs text-muted-foreground">{customer.totalInvoices} factures</p>
+            <p className="text-fluid-xl font-display font-bold">{fmtEUR(customer.totalRevenue ?? 0)}</p>
+            <p className="text-xs text-muted-foreground">{customer.totalInvoices ?? 0} factures</p>
           </CardContent>
         </Card>
         <Card>
@@ -208,23 +279,23 @@ export default function CustomerDetailPage() {
               <span className="text-xs text-muted-foreground">Encaissé</span>
               <InfoTooltip title="Montant encaissé" description="Total des paiements effectivement reçus de ce client." benefit="Différence entre CA total et montant encaissé = impayés en cours." />
             </div>
-            <p className="text-xl font-display font-bold text-success">{fmtEUR(customer.totalPaid)}</p>
+            <p className="text-xl font-display font-bold text-success">{fmtEUR(customer.totalPaid ?? 0)}</p>
             <p className="text-xs text-muted-foreground">
               {customer.lastPaymentDate ? new Date(customer.lastPaymentDate).toLocaleDateString("fr-FR") : "—"}
             </p>
           </CardContent>
         </Card>
-        <Card className={customer.totalUnpaid > 0 ? "border-destructive/30" : ""}>
+        <Card className={(customer.totalUnpaid ?? 0) > 0 ? "border-destructive/30" : ""}>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className={`h-3.5 w-3.5 ${customer.totalUnpaid > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+              <AlertTriangle className={`h-3.5 w-3.5 ${(customer.totalUnpaid ?? 0) > 0 ? "text-destructive" : "text-muted-foreground"}`} />
               <span className="text-xs text-muted-foreground">Impayés</span>
               <InfoTooltip title="Impayés en cours" description="Montant total des factures envoyées non encore réglées par ce client." benefit="Un impayé élevé par rapport au CA total peut indiquer un risque de crédit à surveiller." />
             </div>
-            <p className={`text-xl font-display font-bold ${customer.totalUnpaid > 0 ? "text-destructive" : "text-muted-foreground"}`}>
-              {customer.totalUnpaid > 0 ? fmtEUR(customer.totalUnpaid) : "—"}
+            <p className={`text-xl font-display font-bold ${(customer.totalUnpaid ?? 0) > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+              {(customer.totalUnpaid ?? 0) > 0 ? fmtEUR(customer.totalUnpaid) : "—"}
             </p>
-            <p className="text-xs text-muted-foreground">{customer.totalUnpaid > 0 ? "À relancer" : "Aucun impayé"}</p>
+            <p className="text-xs text-muted-foreground">{(customer.totalUnpaid ?? 0) > 0 ? "À relancer" : "Aucun impayé"}</p>
           </CardContent>
         </Card>
         <Card>
@@ -234,10 +305,16 @@ export default function CustomerDetailPage() {
               <span className="text-xs text-muted-foreground">Délai moyen</span>
               <InfoTooltip title="Délai moyen de paiement" description="Nombre de jours moyen entre l'émission d'une facture et son règlement par ce client." formula="Moyenne de (date paiement − date facture) sur toutes les factures payées" benefit="Un délai > 30j peut signaler un client en difficulté ou de mauvaise foi. En dessous, c'est excellent." />
             </div>
-            <p className={`text-xl font-display font-bold ${customer.averagePaymentDelay > 40 ? "text-destructive" : customer.averagePaymentDelay > 30 ? "text-warning" : "text-success"}`}>
-              {customer.averagePaymentDelay}j
-            </p>
-            <p className="text-xs text-muted-foreground">de paiement</p>
+            {(customer.averagePaymentDelay ?? 0) > 0 ? (
+              <>
+                <p className={`text-xl font-display font-bold ${customer.averagePaymentDelay > 40 ? "text-destructive" : customer.averagePaymentDelay > 30 ? "text-warning" : "text-success"}`}>
+                  {customer.averagePaymentDelay}j
+                </p>
+                <p className="text-xs text-muted-foreground">de paiement</p>
+              </>
+            ) : (
+              <p className="text-xl font-display font-bold text-muted-foreground">—</p>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -256,6 +333,7 @@ export default function CustomerDetailPage() {
           {/* Overview */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
+
               {/* Infos entreprise */}
               <Card>
                 <CardHeader className="pb-2">
@@ -284,17 +362,23 @@ export default function CustomerDetailPage() {
                     <span className="text-muted-foreground">Score de risque</span>
                     <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${rc.bg} ${rc.color}`}>{rc.label}</span>
                   </div>
-                  <div className="pt-2 border-t border-border/50">
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p>{customer.billingAddress.line1}</p>
-                        {customer.billingAddress.line2 && <p>{customer.billingAddress.line2}</p>}
-                        <p>{customer.billingAddress.zip} {customer.billingAddress.city}</p>
-                        <p className="text-muted-foreground">{customer.billingAddress.country}</p>
+                  {(customer.billingAddress?.line1 || customer.billingAddress?.city) && (
+                    <div className="pt-2 border-t border-border/50">
+                      <div className="flex items-start gap-2 text-sm">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                          {customer.billingAddress.line1 && <p>{customer.billingAddress.line1}</p>}
+                          {customer.billingAddress.line2 && <p>{customer.billingAddress.line2}</p>}
+                          {(customer.billingAddress.zip || customer.billingAddress.city) && (
+                            <p>{customer.billingAddress.zip} {customer.billingAddress.city}</p>
+                          )}
+                          {customer.billingAddress.country && (
+                            <p className="text-muted-foreground">{customer.billingAddress.country}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -306,11 +390,11 @@ export default function CustomerDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {customer.contacts.filter((c) => c.isPrimary).map((contact) => (
+                  {(customer.contacts ?? []).filter((c: any) => c.isPrimary).map((contact: any) => (
                     <div key={contact.id}>
                       <div className="flex items-center gap-2 mb-3">
                         <div className="h-9 w-9 rounded-full bg-secondary flex items-center justify-center text-sm font-medium">
-                          {contact.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
+                          {(contact.name ?? "?").substring(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-medium text-sm">{contact.name}</p>
@@ -319,10 +403,12 @@ export default function CustomerDetailPage() {
                         <Star className="h-3.5 w-3.5 text-warning ml-auto" />
                       </div>
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                          <a href={`mailto:${contact.email}`} className="text-primary hover:underline">{contact.email}</a>
-                        </div>
+                        {contact.email && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                            <a href={`mailto:${contact.email}`} className="text-primary hover:underline">{contact.email}</a>
+                          </div>
+                        )}
                         {contact.phone && (
                           <div className="flex items-center gap-2 text-sm">
                             <Phone className="h-3.5 w-3.5 text-muted-foreground" />
@@ -332,6 +418,9 @@ export default function CustomerDetailPage() {
                       </div>
                     </div>
                   ))}
+                  {(customer.contacts ?? []).filter((c: any) => c.isPrimary).length === 0 && (
+                    <p className="text-sm text-muted-foreground">Aucun contact principal défini.</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -372,7 +461,7 @@ export default function CustomerDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {customer.tags.map((tag) => (
+                    {(customer.tags ?? []).map((tag: string) => (
                       <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                     ))}
                     <Button variant="outline" size="sm" className="h-6 text-xs">
@@ -387,7 +476,7 @@ export default function CustomerDetailPage() {
           {/* Documents */}
           <TabsContent value="documents" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">{customer.totalInvoices} documents au total</p>
+              <p className="text-sm text-muted-foreground">{customer.totalInvoices ?? 0} documents au total</p>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm">
                   <FileText className="h-3.5 w-3.5 mr-1.5" />Nouveau devis
@@ -399,41 +488,42 @@ export default function CustomerDetailPage() {
             </div>
             <Card>
               <CardContent className="p-0">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left p-3 font-medium text-muted-foreground">Référence</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
-                      <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">Montant</th>
-                      <th className="text-center p-3 font-medium text-muted-foreground">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customer.activity
-                      .filter((a) => a.ref && a.amount)
-                      .map((a) => (
-                        <tr key={a.id} className="border-b border-border/50 hover:bg-muted/20">
-                          <td className="p-3">
-                            <span className="font-mono text-primary hover:underline cursor-pointer">{a.ref}</span>
-                          </td>
-                          <td className="p-3 text-muted-foreground">
-                            {a.ref?.startsWith("F") ? "Facture" : "Devis"}
-                          </td>
-                          <td className="p-3 text-muted-foreground">
-                            {new Date(a.date).toLocaleDateString("fr-FR")}
-                          </td>
-                          <td className="p-3 text-right font-semibold">{fmtEUR(a.amount!)}</td>
-                          <td className="p-3 text-center">
-                            <Badge variant="secondary" className={`text-[10px] ${activityTypeConfig[a.type].color}`}>
-                              {activityTypeConfig[a.type].label}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-                {customer.activity.filter((a) => a.ref).length === 0 && (
+                {(customer.activity ?? []).filter((a: any) => a.ref && a.amount).length > 0 ? (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left p-3 font-medium text-muted-foreground">Référence</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
+                        <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
+                        <th className="text-right p-3 font-medium text-muted-foreground">Montant</th>
+                        <th className="text-center p-3 font-medium text-muted-foreground">Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(customer.activity ?? [])
+                        .filter((a: any) => a.ref && a.amount)
+                        .map((a: any) => (
+                          <tr key={a.id} className="border-b border-border/50 hover:bg-muted/20">
+                            <td className="p-3">
+                              <span className="font-mono text-primary hover:underline cursor-pointer">{a.ref}</span>
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {a.ref?.startsWith("F") ? "Facture" : "Devis"}
+                            </td>
+                            <td className="p-3 text-muted-foreground">
+                              {new Date(a.date).toLocaleDateString("fr-FR")}
+                            </td>
+                            <td className="p-3 text-right font-semibold">{fmtEUR(a.amount)}</td>
+                            <td className="p-3 text-center">
+                              <Badge variant="secondary" className={`text-[10px] ${activityTypeConfig[a.type]?.color ?? ""}`}>
+                                {activityTypeConfig[a.type]?.label ?? a.type}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <FileText className="h-6 w-6 mx-auto mb-2 opacity-30" />
                     <p>Aucun document pour ce client</p>
@@ -446,18 +536,18 @@ export default function CustomerDetailPage() {
           {/* Contacts */}
           <TabsContent value="contacts" className="space-y-4">
             <div className="flex justify-between items-center">
-              <p className="text-sm text-muted-foreground">{customer.contacts.length} contact(s)</p>
+              <p className="text-sm text-muted-foreground">{(customer.contacts ?? []).length} contact(s)</p>
               <Button size="sm" className="gradient-primary text-primary-foreground">
                 <Plus className="h-3.5 w-3.5 mr-1.5" />Ajouter un contact
               </Button>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              {customer.contacts.map((contact) => (
+              {(customer.contacts ?? []).map((contact: any) => (
                 <Card key={contact.id} className={contact.isPrimary ? "border-primary/30" : "border-border/50"}>
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-sm font-medium flex-shrink-0">
-                        {contact.name.split(" ").map((n) => n[0]).join("").substring(0, 2)}
+                        {(contact.name ?? "?").substring(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -466,10 +556,12 @@ export default function CustomerDetailPage() {
                         </div>
                         <p className="text-xs text-muted-foreground">{contact.role}</p>
                         <div className="mt-2 space-y-1">
-                          <div className="flex items-center gap-2 text-xs">
-                            <Mail className="h-3 w-3 text-muted-foreground" />
-                            <a href={`mailto:${contact.email}`} className="text-primary hover:underline truncate">{contact.email}</a>
-                          </div>
+                          {contact.email && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <Mail className="h-3 w-3 text-muted-foreground" />
+                              <a href={`mailto:${contact.email}`} className="text-primary hover:underline truncate">{contact.email}</a>
+                            </div>
+                          )}
                           {contact.phone && (
                             <div className="flex items-center gap-2 text-xs">
                               <Phone className="h-3 w-3 text-muted-foreground" />
@@ -490,12 +582,15 @@ export default function CustomerDetailPage() {
                   </CardContent>
                 </Card>
               ))}
+              {(customer.contacts ?? []).length === 0 && (
+                <p className="text-sm text-muted-foreground col-span-2">Aucun contact enregistré.</p>
+              )}
             </div>
           </TabsContent>
 
           {/* Activity */}
           <TabsContent value="activity" className="space-y-3">
-            {customer.activity.length === 0 ? (
+            {(customer.activity ?? []).length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="h-6 w-6 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Aucune activité enregistrée</p>
@@ -504,12 +599,12 @@ export default function CustomerDetailPage() {
               <div className="relative">
                 <div className="absolute left-5 top-0 bottom-0 w-px bg-border" />
                 <div className="space-y-4">
-                  {customer.activity.map((act) => {
+                  {(customer.activity ?? []).map((act: any) => {
                     const cfg = activityTypeConfig[act.type];
                     return (
                       <div key={act.id} className="flex gap-4 pl-12 relative">
                         <div className="absolute left-3 top-1 h-4 w-4 rounded-full bg-card border-2 border-border flex items-center justify-center text-[10px]">
-                          {cfg.icon}
+                          {cfg?.icon}
                         </div>
                         <div className="flex-1 pb-1">
                           <div className="flex items-center justify-between gap-2">
@@ -538,19 +633,19 @@ export default function CustomerDetailPage() {
                 <Plus className="h-3.5 w-3.5 mr-1.5" />Ajouter une note
               </Button>
             </div>
-            {customer.notes.length === 0 ? (
+            {(customer.notes ?? []).length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <MessageSquare className="h-6 w-6 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Aucune note pour ce client</p>
               </div>
             ) : (
-              customer.notes.map((note) => (
+              (customer.notes ?? []).map((note: any) => (
                 <Card key={note.id} className="border-border/50">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full gradient-primary flex items-center justify-center text-primary-foreground text-[10px] font-bold">
-                          {note.by[0]}
+                          {(note.by ?? "?")[0]}
                         </div>
                         <span className="text-xs font-medium">{note.by}</span>
                       </div>
