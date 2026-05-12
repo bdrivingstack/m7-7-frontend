@@ -283,6 +283,7 @@ const categoryConfig: Record<IntegrationCategory, { label: string; icon: React.E
   ecommerce:      { label: "E-commerce",     icon: ShoppingCart },
   crm:            { label: "CRM",            icon: Users },
   communication:  { label: "Communication",  icon: MessageSquare },
+  facturation:    { label: "Facturation",    icon: FileText },
   api:            { label: "API & Dev",      icon: Code2 },
 };
 
