@@ -2,16 +2,15 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   Download, FileSpreadsheet, FileText, Database, CheckCircle,
-  Clock, Archive, Filter, Calendar, Building2, Package,
+  Clock, Archive, Filter, Calendar,
   Zap, History,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { API_BASE } from "@/hooks/useApi";
+import { toast } from "sonner";
 
 type ExportStatus = "ready" | "processing" | "done";
 type ExportFormat = "csv" | "xlsx" | "pdf" | "fec" | "json";
@@ -51,57 +50,47 @@ const exportTemplates: ExportTemplate[] = [
     format: "fec", icon: Database, category: "fiscal", popular: true,
   },
   {
-    id: "E2", name: "Livre des recettes",
-    description: "Ensemble des encaissements de la période avec catégories et références.",
-    format: "xlsx", icon: FileSpreadsheet, category: "accounting", popular: true,
+    id: "E2", name: "Transactions bancaires CSV",
+    description: "Toutes les transactions avec qualification TVA, comptes et statuts.",
+    format: "csv", icon: FileText, category: "accounting", popular: true,
   },
   {
-    id: "E3", name: "Journal des achats",
-    description: "Toutes les dépenses et achats avec TVA déductible.",
-    format: "xlsx", icon: FileSpreadsheet, category: "accounting",
+    id: "E3", name: "Journal comptable",
+    description: "Écritures en partie double classées chronologiquement.",
+    format: "json", icon: FileSpreadsheet, category: "accounting",
   },
   {
-    id: "E4", name: "Grand livre général",
-    description: "Toutes les écritures comptables classées par compte.",
-    format: "xlsx", icon: FileSpreadsheet, category: "accounting",
+    id: "E4", name: "Grand livre",
+    description: "Toutes les écritures classées par numéro de compte.",
+    format: "json", icon: FileSpreadsheet, category: "accounting",
   },
   {
-    id: "E5", name: "Déclaration de TVA (CA3)",
-    description: "Export pré-rempli pour la déclaration TVA trimestrielle.",
-    format: "pdf", icon: FileText, category: "fiscal", popular: true,
+    id: "E5", name: "Balance des comptes",
+    description: "Soldes débiteurs et créditeurs par compte.",
+    format: "json", icon: FileText, category: "fiscal", popular: true,
   },
   {
-    id: "E6", name: "Tableau de bord financier",
-    description: "KPIs, CA, marges, évolutions — rapport de gestion mensuel.",
-    format: "pdf", icon: FileText, category: "reporting",
+    id: "E6", name: "Bilan simplifié",
+    description: "Actif / Passif / Résultat sur la période.",
+    format: "json", icon: FileText, category: "fiscal",
   },
   {
-    id: "E7", name: "Transactions bancaires",
-    description: "Toutes les transactions rapprochées avec leurs catégories.",
-    format: "csv", icon: FileText, category: "accounting",
+    id: "E7", name: "Compte de résultat",
+    description: "Produits, charges et résultat net sur la période.",
+    format: "json", icon: FileText, category: "fiscal",
   },
   {
-    id: "E8", name: "Export Sage / EBP",
+    id: "E8", name: "TVA CA3 (brouillon)",
+    description: "Récapitulatif TVA collectée/déductible pour pré-remplir la CA3.",
+    format: "json", icon: Database, category: "fiscal",
+  },
+  {
+    id: "E9", name: "Export Sage / EBP",
     description: "Format compatible avec les logiciels de comptabilité Sage et EBP.",
     format: "csv", icon: Database, category: "integration",
   },
   {
-    id: "E9", name: "Export QuickBooks",
-    description: "Format IIF pour importation directe dans QuickBooks.",
-    format: "csv", icon: Database, category: "integration",
-  },
-  {
-    id: "E10", name: "Bilan simplifié",
-    description: "Synthèse annuelle : actif, passif, résultat. Format comptable simplifié.",
-    format: "pdf", icon: FileText, category: "fiscal",
-  },
-  {
-    id: "E11", name: "Détail cotisations sociales",
-    description: "Récapitulatif annuel URSSAF, retraite et prévoyance par période.",
-    format: "xlsx", icon: FileSpreadsheet, category: "fiscal",
-  },
-  {
-    id: "E12", name: "Données brutes JSON",
+    id: "E10", name: "Données brutes JSON",
     description: "Export complet des données pour intégration API personnalisée.",
     format: "json", icon: Database, category: "integration",
   },
@@ -136,9 +125,59 @@ export default function ExportsPage() {
     return true;
   });
 
-  const handleGenerate = (id: string) => {
+  const API_ROUTES: Record<string, string> = {
+    "E1": `${API_BASE}/api/accounting-intelligence/exports/transactions.fec`,
+    "E2": `${API_BASE}/api/accounting-intelligence/exports/transactions.csv`,
+    "E3": `${API_BASE}/api/accounting-intelligence/accounting/journal`,
+    "E4": `${API_BASE}/api/accounting-intelligence/accounting/grand-livre`,
+    "E5": `${API_BASE}/api/accounting-intelligence/accounting/balance`,
+    "E6": `${API_BASE}/api/accounting-intelligence/accounting/bilan`,
+    "E7": `${API_BASE}/api/accounting-intelligence/accounting/compte-resultat`,
+    "E8": `${API_BASE}/api/accounting-intelligence/accounting/ca3`,
+  };
+
+  const handleGenerate = async (id: string) => {
+    const url = API_ROUTES[id];
+    if (!url) {
+      toast.info("Export bientôt disponible.");
+      return;
+    }
     setGenerating(id);
-    setTimeout(() => setGenerating(null), 2000);
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.message ?? `Erreur ${res.status}`);
+      }
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("text/") || contentType.includes("application/octet")) {
+        // File download
+        const blob = await res.blob();
+        const disp = res.headers.get("content-disposition") ?? "";
+        const nameMatch = disp.match(/filename=([^\s;]+)/);
+        const filename = nameMatch?.[1] ?? `export-${id}-${new Date().toISOString().slice(0, 10)}.txt`;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast.success("Fichier téléchargé.");
+      } else {
+        // JSON → download as JSON file
+        const json = await res.json();
+        const blob = new Blob([JSON.stringify(json.data, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `export-${id}-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast.success("Export JSON téléchargé.");
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "Erreur lors de l'export");
+    } finally {
+      setGenerating(null);
+    }
   };
 
   return (

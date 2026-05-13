@@ -3,7 +3,7 @@ import {
   Bot, BarChart3, Plug, Settings, ChevronDown, Zap,
   Receipt, RefreshCw, Send, Link2, FileCheck, Landmark,
   ArrowLeftRight, Tags, ShoppingCart, Percent, PiggyBank,
-  Building2, GitBranch, Wallet,
+  Building2, GitBranch, Wallet, Brain,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -30,10 +30,11 @@ const facturationNav: NavItem[] = [
 ];
 
 const tresorerieNav: NavItem[] = [
-  { title: "Paiements",     url: "/app/payments",                    icon: CreditCard     },
-  { title: "Transactions",  url: "/app/accounting/transactions",     icon: ArrowLeftRight },
-  { title: "Banques",       url: "/app/accounting/banks",            icon: Landmark       },
-  { title: "Rapprochement", url: "/app/accounting/reconciliation",   icon: GitBranch      },
+  { title: "Paiements",          url: "/app/payments",                       icon: CreditCard     },
+  { title: "Transactions",       url: "/app/accounting/transactions",        icon: ArrowLeftRight },
+  { title: "Banques",            url: "/app/accounting/banks",               icon: Landmark       },
+  { title: "Rapprochement",      url: "/app/accounting/reconciliation",      icon: GitBranch      },
+  { title: "Import Intelligence", url: "/app/accounting/intelligence",       icon: Brain          },
 ];
 
 const comptabiliteNav: NavItem[] = [

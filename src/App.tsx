@@ -113,6 +113,7 @@ import OpportunitiesPage from "@/pages/app/productivity/OpportunitiesPage";
 import VATPage from "@/pages/app/accounting/VATPage";
 import SocialPage from "@/pages/app/accounting/SocialPage";
 import ExportsPage from "@/pages/app/accounting/ExportsPage";
+import AccountingIntelligencePage from "@/pages/app/accounting/AccountingIntelligencePage";
 
 // Sales pages
 import InvoicesListPage from "@/pages/app/sales/InvoicesListPage";
@@ -197,6 +198,7 @@ const App = () => (
               <Route path="accounting/purchases-book" element={<PurchasesBookPage />} />
               <Route path="accounting/banks" element={<BanksPage />} />
               <Route path="accounting/transactions" element={<TransactionsPage />} />
+              <Route path="accounting/intelligence" element={<AccountingIntelligencePage />} />
               <Route path="accounting/categories" element={<CategoriesPage />} />
               <Route path="accounting/vat" element={<VATPage />} />
               <Route path="accounting/social" element={<SocialPage />} />
@@ -246,6 +248,7 @@ const App = () => (
               <Route path="accounting/purchases-book" element={<PurchasesBookPage />} />
               <Route path="accounting/banks" element={<BanksPage />} />
               <Route path="accounting/transactions" element={<TransactionsPage />} />
+              <Route path="accounting/intelligence" element={<AccountingIntelligencePage />} />
               <Route path="accounting/categories" element={<CategoriesPage />} />
               <Route path="accounting/vat" element={<VATPage />} />
               <Route path="accounting/social" element={<SocialPage />} />
