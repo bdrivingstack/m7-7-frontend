@@ -205,9 +205,9 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     let bestQuad: Quad | null = null;
 
     // Find the best 4-corner quad from a contour vector
+    // minArea: ignore tiny noise. maxArea: ignore whole-frame false detection (100% rejected).
     const minArea = procW * procH * 0.05;   // at least 5% of frame
-    const maxArea = procW * procH * 0.82;   // at most 82% — avoids detecting the whole frame
-    const edgeMg  = Math.min(procW, procH) * 0.04; // 4% margin — quad must not touch edges
+    const maxArea = procW * procH * 0.92;   // at most 92% — rejects only if literally the whole frame
 
     const findQuad = (cvec: any): Quad | null => {
       let result: Quad | null = null;
@@ -225,27 +225,15 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             try {
               cv.approxPolyDP(hull, approx, eps * peri, true);
               if (approx.rows === 4) {
-                // Reject if any corner touches the frame boundary
+                largestArea = area;
+                const sx = dw / procW, sy = dh / procH;
                 const d = approx.data32S;
-                const touchesEdge =
-                  d[0] < edgeMg || d[0] > procW - edgeMg ||
-                  d[1] < edgeMg || d[1] > procH - edgeMg ||
-                  d[2] < edgeMg || d[2] > procW - edgeMg ||
-                  d[3] < edgeMg || d[3] > procH - edgeMg ||
-                  d[4] < edgeMg || d[4] > procW - edgeMg ||
-                  d[5] < edgeMg || d[5] > procH - edgeMg ||
-                  d[6] < edgeMg || d[6] > procW - edgeMg ||
-                  d[7] < edgeMg || d[7] > procH - edgeMg;
-                if (!touchesEdge) {
-                  largestArea = area;
-                  const sx = dw / procW, sy = dh / procH;
-                  result = [
-                    [d[0] * sx, d[1] * sy],
-                    [d[2] * sx, d[3] * sy],
-                    [d[4] * sx, d[5] * sy],
-                    [d[6] * sx, d[7] * sy],
-                  ] as Quad;
-                }
+                result = [
+                  [d[0] * sx, d[1] * sy],
+                  [d[2] * sx, d[3] * sy],
+                  [d[4] * sx, d[5] * sy],
+                  [d[6] * sx, d[7] * sy],
+                ] as Quad;
                 break;
               }
             } finally { try { approx.delete(); } catch {} }
@@ -306,7 +294,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       const sorted    = sortCorners([...bestQuad])    as Quad;
       const prevSorted = sortCorners([...prevQuadRef.current]) as Quad;
       const diagonal  = Math.hypot(dw, dh);
-      const maxDelta  = diagonal * 0.12; // 12% of diagonal = "same quad"
+      const maxDelta  = diagonal * 0.20; // 20% of diagonal = "same quad"
       const isSimilar = sorted.every(([x, y], i) =>
         Math.hypot(x - prevSorted[i][0], y - prevSorted[i][1]) < maxDelta
       );
