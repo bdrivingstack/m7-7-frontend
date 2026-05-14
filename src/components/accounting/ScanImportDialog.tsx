@@ -90,6 +90,8 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
   const gaugeRef        = useRef(0);
   const isCapturingRef  = useRef(false);
   const pagesRef        = useRef<PagePreview[]>([]);
+  const prevQuadRef     = useRef<Quad | null>(null);    // temporal smoothing
+  const stableFrameRef  = useRef(0);                    // consecutive stable frames
 
   const [open, setOpen]           = useState(false);
   const [step, setStep]           = useState<Step>("capture");
@@ -166,6 +168,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     setCameraReady(false); setDetected(false);
     gaugeStartRef.current = null; gaugeRef.current = 0;
     quadRef.current = null; isCapturingRef.current = false;
+    prevQuadRef.current = null; stableFrameRef.current = 0;
   };
 
   const handleClose = (v: boolean) => { if (!v) resetAll(); setOpen(v); };
@@ -202,13 +205,17 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     let bestQuad: Quad | null = null;
 
     // Find the best 4-corner quad from a contour vector
+    const minArea = procW * procH * 0.05;   // at least 5% of frame
+    const maxArea = procW * procH * 0.82;   // at most 82% — avoids detecting the whole frame
+    const edgeMg  = Math.min(procW, procH) * 0.04; // 4% margin — quad must not touch edges
+
     const findQuad = (cvec: any): Quad | null => {
       let result: Quad | null = null;
-      let largestArea = procW * procH * 0.04;
+      let largestArea = minArea;
       for (let i = 0; i < cvec.size(); i++) {
         const cnt = cvec.get(i);
         const area = cv.contourArea(cnt);
-        if (area <= largestArea) { cnt.delete(); continue; }
+        if (area <= largestArea || area > maxArea) { cnt.delete(); continue; }
         const hull = new cv.Mat();
         try {
           cv.convexHull(cnt, hull, false, true);
@@ -218,14 +225,27 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             try {
               cv.approxPolyDP(hull, approx, eps * peri, true);
               if (approx.rows === 4) {
-                largestArea = area;
-                const sx = dw / procW, sy = dh / procH;
-                result = [
-                  [approx.data32S[0] * sx, approx.data32S[1] * sy],
-                  [approx.data32S[2] * sx, approx.data32S[3] * sy],
-                  [approx.data32S[4] * sx, approx.data32S[5] * sy],
-                  [approx.data32S[6] * sx, approx.data32S[7] * sy],
-                ] as Quad;
+                // Reject if any corner touches the frame boundary
+                const d = approx.data32S;
+                const touchesEdge =
+                  d[0] < edgeMg || d[0] > procW - edgeMg ||
+                  d[1] < edgeMg || d[1] > procH - edgeMg ||
+                  d[2] < edgeMg || d[2] > procW - edgeMg ||
+                  d[3] < edgeMg || d[3] > procH - edgeMg ||
+                  d[4] < edgeMg || d[4] > procW - edgeMg ||
+                  d[5] < edgeMg || d[5] > procH - edgeMg ||
+                  d[6] < edgeMg || d[6] > procW - edgeMg ||
+                  d[7] < edgeMg || d[7] > procH - edgeMg;
+                if (!touchesEdge) {
+                  largestArea = area;
+                  const sx = dw / procW, sy = dh / procH;
+                  result = [
+                    [d[0] * sx, d[1] * sy],
+                    [d[2] * sx, d[3] * sy],
+                    [d[4] * sx, d[5] * sy],
+                    [d[6] * sx, d[7] * sy],
+                  ] as Quad;
+                }
                 break;
               }
             } finally { try { approx.delete(); } catch {} }
@@ -279,10 +299,45 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
         .forEach((m) => { try { m?.delete(); } catch {} });
     }
 
-    // Gauge logic
+    // ── Temporal smoothing: require 3 stable frames before accepting ──────────
+    let stableQuad: Quad | null = null;
+    if (bestQuad && prevQuadRef.current) {
+      // Sort both quads for consistent corner ordering before comparing
+      const sorted    = sortCorners([...bestQuad])    as Quad;
+      const prevSorted = sortCorners([...prevQuadRef.current]) as Quad;
+      const diagonal  = Math.hypot(dw, dh);
+      const maxDelta  = diagonal * 0.12; // 12% of diagonal = "same quad"
+      const isSimilar = sorted.every(([x, y], i) =>
+        Math.hypot(x - prevSorted[i][0], y - prevSorted[i][1]) < maxDelta
+      );
+      if (isSimilar) {
+        stableFrameRef.current++;
+        // EMA smooth the corners (alpha=0.4)
+        const alpha = 0.4;
+        stableQuad = sorted.map(([x, y], i) => [
+          prevSorted[i][0] + alpha * (x - prevSorted[i][0]),
+          prevSorted[i][1] + alpha * (y - prevSorted[i][1]),
+        ]) as Quad;
+      } else {
+        // Camera moved — reset stability and gauge
+        stableFrameRef.current = 0;
+        gaugeStartRef.current = null;
+        gaugeRef.current = 0;
+      }
+    } else if (bestQuad) {
+      stableFrameRef.current = 1;
+    } else {
+      stableFrameRef.current = 0;
+    }
+    prevQuadRef.current = bestQuad ? (sortCorners([...bestQuad]) as Quad) : null;
+
+    // Only use quad after 3 consecutive stable frames
+    const confirmedQuad = stableFrameRef.current >= 3 ? stableQuad : null;
+
+    // Gauge logic (only on confirmed stable quad)
     const now = performance.now();
-    if (bestQuad) {
-      quadRef.current = bestQuad;
+    if (confirmedQuad) {
+      quadRef.current = confirmedQuad;
       if (gaugeStartRef.current === null) gaugeStartRef.current = now;
       gaugeRef.current = Math.min(100, ((now - gaugeStartRef.current) / 5000) * 100);
       setDetected(true);
@@ -292,12 +347,14 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       }
     } else {
       quadRef.current = null;
-      gaugeStartRef.current = null;
-      gaugeRef.current = 0;
+      if (!bestQuad) {
+        gaugeStartRef.current = null;
+        gaugeRef.current = 0;
+      }
       setDetected(false);
     }
 
-    drawOverlay(overlay, bestQuad, gaugeRef.current);
+    drawOverlay(overlay, confirmedQuad, gaugeRef.current);
   }, []);
 
   // ── Draw detection overlay + gauge ────────────────────────────────────────
