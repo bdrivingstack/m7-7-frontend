@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+
 import { motion } from "framer-motion";
 import {
   Upload, Brain, CheckCircle2, AlertTriangle, FileSpreadsheet,
@@ -13,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useApi, apiFetch, API_BASE } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { ReceiptScannerDialog } from "@/components/accounting/ReceiptScannerDialog";
+import { ScanImportDialog } from "@/components/accounting/ScanImportDialog";
 
 const vatLabels: Record<string, string> = {
   DEDUCTIBLE: "TVA déductible",
@@ -85,7 +87,6 @@ export default function AccountingIntelligencePage() {
   const [uploading, setUploading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const { data: transactionsResult, refetch } = useApi<{ data: BankTransaction[] }>("/api/accounting-intelligence/transactions?limit=100");
   const [selectedVat, setSelectedVat] = useState<Record<string, string>>({});
 
@@ -186,6 +187,7 @@ export default function AccountingIntelligencePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ScanImportDialog onImported={refetch} />
           <Button variant="outline" onClick={suggestActivity}>
             <Brain className="h-4 w-4 mr-2" />Qualifier l'activité
           </Button>
@@ -232,16 +234,6 @@ export default function AccountingIntelligencePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Input caméra mobile caché — capture directe arrière */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*,.pdf"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-
           <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="space-y-1.5 flex-1">
               <Label>Fichier relevé bancaire</Label>
@@ -252,16 +244,14 @@ export default function AccountingIntelligencePage() {
                   onChange={handleFileChange}
                   className="flex-1"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="flex-shrink-0 lg:hidden"
-                  title="Prendre en photo"
-                  onClick={() => cameraInputRef.current?.click()}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
+                <ScanImportDialog
+                  onImported={refetch}
+                  trigger={
+                    <Button type="button" variant="outline" size="icon" className="flex-shrink-0 lg:hidden" title="Scanner un document">
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  }
+                />
               </div>
               {file && (
                 <p className="text-[11px] text-primary font-medium truncate">
