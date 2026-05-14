@@ -77,33 +77,9 @@ export default function VATPage() {
   const isDemo = !!demo?.isDemo;
   const [selectedPeriod, setSelectedPeriod] = useState("T1-2024");
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <Percent className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">TVA</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune déclaration TVA disponible.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          La gestion TVA sera alimentée automatiquement à partir de vos factures
-          encaissées et de vos dépenses professionnelles.
-        </p>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/app/sales/invoices">Voir mes factures</Link>
-          </Button>
-          <Button size="sm" className="gradient-primary text-primary-foreground"
-            onClick={() => window.open("https://www.impots.gouv.fr", "_blank")}>
-            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />impots.gouv.fr
-          </Button>
-        </div>
-      </motion.div>
-    );
-  }
-  const current = declarations.find((d) => d.period === selectedPeriod)!;
+  const vatDeclarations = isDemo ? declarations : [];
+  const EMPTY_DECL: VATDeclaration = { id: "—", period: "—", periodLabel: "—", collected: 0, deductible: 0, due: 0, status: "upcoming", deadline: new Date().toISOString() };
+  const current = vatDeclarations.find((d) => d.period === selectedPeriod) ?? EMPTY_DECL;
   const sc = statusConfig[current.status];
   const StatusIcon = sc.icon;
 
@@ -122,11 +98,23 @@ export default function VATPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Download className="h-3.5 w-3.5 mr-1.5" />Exporter</Button>
-          <Button size="sm" className="gradient-primary text-primary-foreground">
-            <FileText className="h-3.5 w-3.5 mr-1.5" />Préparer la déclaration
+          <Button asChild variant="outline" size="sm">
+            <Link to="/app/sales/invoices">
+              <FileText className="h-3.5 w-3.5 mr-1.5" />Voir mes factures
+            </Link>
+          </Button>
+          <Button size="sm" className="gradient-primary text-primary-foreground"
+            onClick={() => window.open("https://www.impots.gouv.fr", "_blank")}>
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />impots.gouv.fr
           </Button>
         </div>
       </motion.div>
+
+      {!isDemo && (
+        <motion.p variants={item} className="text-xs text-muted-foreground">
+          Aucune déclaration TVA disponible. La gestion TVA sera alimentée automatiquement à partir de vos factures encaissées et de vos dépenses professionnelles.
+        </motion.p>
+      )}
 
       {/* Current period banner */}
       <motion.div variants={item}>
@@ -274,7 +262,16 @@ export default function VATPage() {
 
         {/* Historique */}
         <TabsContent value="history" className="space-y-3 mt-4">
-          {declarations.map((decl) => {
+          {vatDeclarations.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                <Percent className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p>Aucune déclaration TVA disponible</p>
+                <p className="text-xs mt-1">La TVA sera alimentée depuis vos factures encaissées.</p>
+              </CardContent>
+            </Card>
+          )}
+          {vatDeclarations.map((decl) => {
             const sc2 = statusConfig[decl.status];
             const Icon2 = sc2.icon;
             return (

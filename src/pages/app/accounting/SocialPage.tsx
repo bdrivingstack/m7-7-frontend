@@ -75,46 +75,23 @@ const historicalData = [
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
+const EMPTY_SOCIAL_CONTRIB = { period: "—", estimated: 0, paid: 0, remaining: 0, nextDeadline: new Date().toISOString(), rate: 0 };
+
 export default function SocialPage() {
   const demo   = useDemo();
   const isDemo = !!demo?.isDemo;
   const [periodFilter, setPeriodFilter] = useState<"all" | "T1 2024" | "T4 2023">("all");
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <PiggyBank className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Cotisations sociales</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune cotisation enregistrée.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Connectez votre espace URSSAF depuis les paramètres pour suivre
-          et simuler vos cotisations sociales automatiquement.
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.open("https://www.urssaf.fr", "_blank")}>
-            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />URSSAF.fr
-          </Button>
-          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
-            <a href="/app/settings/urssaf">
-              <Building2 className="h-3.5 w-3.5 mr-1.5" />Connecter URSSAF
-            </a>
-          </Button>
-        </div>
-      </motion.div>
-    );
-  }
+  const socialData    = isDemo ? socialContributions : EMPTY_SOCIAL_CONTRIB;
+  const socialPayments = isDemo ? payments : [];
 
-  const filtered = payments.filter((p) => {
+  const filtered = socialPayments.filter((p) => {
     if (periodFilter !== "all" && p.period !== periodFilter) return false;
     return true;
   });
 
-  const totalPending = payments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
-  const progressPct = Math.round((socialContributions.paid / socialContributions.estimated) * 100);
+  const totalPending = socialPayments.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  const progressPct = socialData.estimated > 0 ? Math.round((socialData.paid / socialData.estimated) * 100) : 0;
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
@@ -130,8 +107,21 @@ export default function SocialPage() {
             <ExternalLink className="h-3.5 w-3.5 mr-1.5" />URSSAF.fr
           </Button>
           <Button variant="outline" size="sm"><Download className="h-3.5 w-3.5 mr-1.5" />Exporter</Button>
+          {!isDemo && (
+            <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+              <a href="/app/settings/urssaf">
+                <Building2 className="h-3.5 w-3.5 mr-1.5" />Connecter URSSAF
+              </a>
+            </Button>
+          )}
         </div>
       </motion.div>
+
+      {!isDemo && (
+        <motion.p variants={item} className="text-xs text-muted-foreground">
+          Aucune cotisation enregistrée. Connectez votre espace URSSAF depuis les paramètres pour suivre et simuler vos cotisations sociales automatiquement.
+        </motion.p>
+      )}
 
       {/* KPIs */}
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -142,8 +132,8 @@ export default function SocialPage() {
               <span className="text-xs text-muted-foreground">Estimé annuel</span>
               <InfoTooltip title="Cotisations sociales estimées" description="Estimation des cotisations sociales dues sur l'année complète, calculée sur la base de votre CA déclaré." formula="CA annuel × taux de cotisations selon votre régime (BNC/BIC services/BIC vente)" benefit="Cette estimation vous permet de provisionner chaque mois la bonne somme pour éviter les mauvaises surprises aux échéances URSSAF." />
             </div>
-            <p className="text-fluid-2xl font-display font-bold">{fmt(socialContributions.estimated)}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Taux moyen {socialContributions.rate}%</p>
+            <p className="text-fluid-2xl font-display font-bold">{fmt(socialData.estimated)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Taux moyen {socialData.rate}%</p>
           </CardContent>
         </Card>
         <Card>
@@ -153,7 +143,7 @@ export default function SocialPage() {
               <span className="text-xs text-muted-foreground">Déjà réglé</span>
               <InfoTooltip title="Cotisations déjà réglées" description="Total des cotisations sociales effectivement versées à l'URSSAF sur l'année en cours." benefit="Comparez ce montant à l'estimation annuelle pour savoir si vous êtes à jour dans vos versements." />
             </div>
-            <p className="text-2xl font-display font-bold text-success">{fmt(socialContributions.paid)}</p>
+            <p className="text-2xl font-display font-bold text-success">{fmt(socialData.paid)}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{progressPct}% de l'estimation</p>
           </CardContent>
         </Card>
@@ -176,9 +166,9 @@ export default function SocialPage() {
               <InfoTooltip title="Prochaine échéance URSSAF" description="Date limite du prochain versement de cotisations sociales à l'URSSAF." benefit="Notez cette date et assurez-vous d'avoir les fonds disponibles. LE BELVEDERE vous enverra un rappel automatique." />
             </div>
             <p className="text-fluid-xl font-display font-bold">
-              {new Date(socialContributions.nextDeadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+              {new Date(socialData.nextDeadline).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">{socialContributions.period}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{socialData.period}</p>
           </CardContent>
         </Card>
       </motion.div>
@@ -189,8 +179,8 @@ export default function SocialPage() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium">Progression annuelle {socialContributions.period}</p>
-                <p className="text-xs text-muted-foreground">{fmt(socialContributions.paid)} payés sur {fmt(socialContributions.estimated)} estimés</p>
+                <p className="text-sm font-medium">Progression annuelle {socialData.period}</p>
+                <p className="text-xs text-muted-foreground">{fmt(socialData.paid)} payés sur {fmt(socialData.estimated)} estimés</p>
               </div>
               <span className="text-2xl font-display font-bold text-primary">{progressPct}%</span>
             </div>
@@ -203,8 +193,8 @@ export default function SocialPage() {
               />
             </div>
             <div className="flex justify-between text-xs text-muted-foreground mt-2">
-              <span>Payé : {fmt(socialContributions.paid)}</span>
-              <span>Restant : {fmt(socialContributions.remaining)}</span>
+              <span>Payé : {fmt(socialData.paid)}</span>
+              <span>Restant : {fmt(socialData.remaining)}</span>
             </div>
           </CardContent>
         </Card>
@@ -232,6 +222,15 @@ export default function SocialPage() {
             ))}
           </div>
           <div className="space-y-3">
+            {filtered.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                  <PiggyBank className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p>Aucune cotisation enregistrée</p>
+                  <p className="text-xs mt-1">Connectez votre espace URSSAF pour commencer le suivi.</p>
+                </CardContent>
+              </Card>
+            )}
             {filtered.map((p) => {
               const sc = statusConfig[p.status];
               const StatusIcon = sc.icon;
@@ -284,7 +283,7 @@ export default function SocialPage() {
                   <CardTitle className="text-sm font-medium">Détail des cotisations — Base {fmt(47850)}</CardTitle>
                   <InfoTooltip title="Détail des cotisations sociales" description="Décomposition de vos cotisations par organisme : maladie, retraite de base, retraite complémentaire, invalidité-décès, formation professionnelle." benefit="Comprendre la répartition permet d'anticiper les remboursements en cas de maladie ou de faire valoir vos droits à la retraite." />
                 </div>
-                <p className="text-xs text-muted-foreground">Taux moyen global : {socialContributions.rate}%</p>
+                <p className="text-xs text-muted-foreground">Taux moyen global : {socialData.rate}%</p>
               </div>
             </CardHeader>
             <CardContent>
@@ -313,7 +312,7 @@ export default function SocialPage() {
                   ))}
                   <tr className="bg-muted/30 font-bold">
                     <td className="p-3">Total annuel estimé</td>
-                    <td className="p-3 text-right">{socialContributions.rate}%</td>
+                    <td className="p-3 text-right">{socialData.rate}%</td>
                     <td className="p-3 text-right">{fmt(47850)}</td>
                     <td className="p-3 text-right text-lg font-display">{fmt(cotisationLines.reduce((s, l) => s + l.amount, 0))}</td>
                   </tr>
@@ -358,7 +357,7 @@ export default function SocialPage() {
                 <p className="text-sm font-medium">Conseil — Provision recommandée</p>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                Pour éviter les mauvaises surprises, nous recommandons de provisionner {socialContributions.rate + 3}% de chaque encaissement sur un compte épargne dédié.
+                Pour éviter les mauvaises surprises, nous recommandons de provisionner {socialData.rate + 3}% de chaque encaissement sur un compte épargne dédié.
               </p>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-card">
@@ -367,11 +366,11 @@ export default function SocialPage() {
                 </div>
                 <div className="p-3 rounded-lg bg-card">
                   <p className="text-[10px] text-muted-foreground mb-1">À provisionner</p>
-                  <p className="font-bold text-primary">{fmt(Math.round(11750 * (socialContributions.rate + 3) / 100))}</p>
+                  <p className="font-bold text-primary">{fmt(Math.round(11750 * (socialData.rate + 3) / 100))}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-card">
                   <p className="text-[10px] text-muted-foreground mb-1">Taux conseillé</p>
-                  <p className="font-bold">{socialContributions.rate + 3}%</p>
+                  <p className="font-bold">{socialData.rate + 3}%</p>
                 </div>
               </div>
             </CardContent>

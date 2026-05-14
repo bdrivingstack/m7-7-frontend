@@ -13,34 +13,12 @@ import { toast } from "@/hooks/use-toast";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
-const revenueCats = accountingCategories.filter(c => c.type === "revenue");
-const expenseCats = accountingCategories.filter(c => c.type === "expense");
-
 export default function CategoriesPage() {
   const demo   = useDemo();
   const isDemo = !!demo?.isDemo;
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <Tag className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Catégories comptables</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune catégorie configurée.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Les catégories comptables seront créées automatiquement lors de l'import
-          de vos premières transactions bancaires.
-        </p>
-        <Button size="sm" className="gradient-primary text-primary-foreground"
-          onClick={() => toast({ title: "Bientôt disponible", description: "La gestion des catégories sera disponible prochainement." })}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />Nouvelle catégorie
-        </Button>
-      </motion.div>
-    );
-  }
+  const revenueCats = isDemo ? accountingCategories.filter(c => c.type === "revenue") : [];
+  const expenseCats = isDemo ? accountingCategories.filter(c => c.type === "expense") : [];
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -49,8 +27,17 @@ export default function CategoriesPage() {
           <h1 className="text-fluid-2xl font-display font-bold">Catégories comptables</h1>
           <p className="text-sm text-muted-foreground">Organisez vos transactions par catégorie</p>
         </div>
-        <Button size="sm" className="gradient-primary text-primary-foreground"><Plus className="h-3.5 w-3.5 mr-1.5" />Nouvelle catégorie</Button>
+        <Button size="sm" className="gradient-primary text-primary-foreground"
+          onClick={() => toast({ title: "Bientôt disponible", description: "La gestion des catégories sera disponible prochainement." })}>
+          <Plus className="h-3.5 w-3.5 mr-1.5" />Nouvelle catégorie
+        </Button>
       </div>
+
+      {!isDemo && (
+        <p className="text-xs text-muted-foreground">
+          Aucune catégorie configurée. Les catégories comptables seront créées automatiquement lors de l'import de vos premières transactions bancaires.
+        </p>
+      )}
 
       <Tabs defaultValue="revenue">
         <TabsList>
@@ -68,14 +55,20 @@ export default function CategoriesPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueCats} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${v / 1000}k€`} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                    <Bar dataKey="total" radius={[0, 4, 4, 0]} fill="hsl(250 75% 57%)" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {revenueCats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={revenueCats} layout="vertical">
+                      <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${v / 1000}k€`} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
+                      <Tooltip formatter={(v: number) => fmt(v)} />
+                      <Bar dataKey="total" radius={[0, 4, 4, 0]} fill="hsl(250 75% 57%)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Aucune donnée disponible
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -83,6 +76,15 @@ export default function CategoriesPage() {
             {revenueCats.map(cat => (
               <CategoryRow key={cat.id} cat={cat} type="revenue" />
             ))}
+            {revenueCats.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                  <Tag className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p>Aucune catégorie de recettes</p>
+                  <p className="text-xs mt-1">Les catégories seront créées automatiquement à l'import.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -96,14 +98,20 @@ export default function CategoriesPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={expenseCats} layout="vertical">
-                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${v / 1000}k€`} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                    <Bar dataKey="total" radius={[0, 4, 4, 0]} fill="hsl(0 72% 55% / 0.6)" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {expenseCats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={expenseCats} layout="vertical">
+                      <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${v / 1000}k€`} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={130} />
+                      <Tooltip formatter={(v: number) => fmt(v)} />
+                      <Bar dataKey="total" radius={[0, 4, 4, 0]} fill="hsl(0 72% 55% / 0.6)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                    Aucune donnée disponible
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -111,6 +119,15 @@ export default function CategoriesPage() {
             {expenseCats.map(cat => (
               <CategoryRow key={cat.id} cat={cat} type="expense" />
             ))}
+            {expenseCats.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="py-10 text-center text-muted-foreground text-sm">
+                  <Tag className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p>Aucune catégorie de dépenses</p>
+                  <p className="text-xs mt-1">Les catégories seront créées automatiquement à l'import.</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>
