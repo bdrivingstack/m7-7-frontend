@@ -115,12 +115,21 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) return;
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+
+    const startCamera = (constraints: MediaStreamConstraints) =>
+      navigator.mediaDevices.getUserMedia(constraints);
+
+    // Try rear camera → any camera (desktop / devices without rear cam)
+    startCamera({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+      .catch(() => startCamera({ video: true, audio: false }))
       .then((stream) => {
         streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        setCameraReady(true);
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        // Wait for actual frames before declaring camera ready
+        const onReady = () => { setCameraReady(true); video.removeEventListener("canplay", onReady); };
+        video.addEventListener("canplay", onReady);
       })
       .catch(() => setCameraReady(false));
   }, [open, step]);
@@ -175,84 +184,110 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     const cv      = window.cv;
     if (!video || !overlay || !cv?.Mat) return;
 
-    // Sync overlay canvas dimensions with displayed size
-    const dw = overlay.clientWidth || overlay.offsetWidth;
-    const dh = overlay.clientHeight || overlay.offsetHeight;
+    // Skip until video actually has frames
+    if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    // Use video element dimensions (reliable even before canvas is laid out)
+    const rect = video.getBoundingClientRect();
+    const dw = Math.round(rect.width)  || video.clientWidth  || 640;
+    const dh = Math.round(rect.height) || video.clientHeight || 480;
     if (!dw || !dh) return;
     if (overlay.width !== dw || overlay.height !== dh) { overlay.width = dw; overlay.height = dh; }
 
     // Processing canvas (downscaled for performance)
     if (!procCanvasRef.current) procCanvasRef.current = document.createElement("canvas");
     const proc = procCanvasRef.current;
-    const procW = Math.min(video.videoWidth || 640, 640);
-    const procH = Math.round((video.videoHeight || 480) * procW / (video.videoWidth || 640));
+    const procW = Math.min(video.videoWidth, 640);
+    const procH = Math.round(video.videoHeight * procW / video.videoWidth);
     proc.width = procW; proc.height = procH;
-    proc.getContext("2d")!.drawImage(video, 0, 0, procW, procH);
-
-    const src       = cv.imread(proc);
-    const gray      = new cv.Mat();
-    const blurred   = new cv.Mat();
-    const edges     = new cv.Mat();
-    const dilated   = new cv.Mat();
-    const kernel    = cv.Mat.ones(3, 3, cv.CV_8U);
-    const contours  = new cv.MatVector();
-    const hierarchy = new cv.Mat();
 
     try {
+      proc.getContext("2d")!.drawImage(video, 0, 0, procW, procH);
+    } catch { return; } // canvas tainted on some platforms
+
+    let bestQuad: Quad | null = null;
+    let src: any, gray: any, blurred: any, edges: any, dilated: any, kernel: any, contours: any, hierarchy: any;
+
+    try {
+      src       = cv.imread(proc);
+      gray      = new cv.Mat();
+      blurred   = new cv.Mat();
+      edges     = new cv.Mat();
+      dilated   = new cv.Mat();
+      kernel    = cv.Mat.ones(3, 3, cv.CV_8U);
+      contours  = new cv.MatVector();
+      hierarchy = new cv.Mat();
+
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
       cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-      cv.Canny(blurred, edges, 75, 200);
+      cv.Canny(blurred, edges, 50, 150);            // More sensitive thresholds
       cv.dilate(edges, dilated, kernel);
-      cv.findContours(dilated, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+      // RETR_EXTERNAL: only outer contours, no inner noise
+      cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      let bestQuad: Quad | null = null;
       let largestArea = 0;
-      const minArea = procW * procH * 0.08;
+      const minArea = procW * procH * 0.04; // 4% — was 8%
 
       for (let i = 0; i < contours.size(); i++) {
         const c = contours.get(i);
         const area = cv.contourArea(c);
         if (area < minArea) { c.delete(); continue; }
-        const peri = cv.arcLength(c, true);
-        const approx = new cv.Mat();
-        cv.approxPolyDP(c, approx, 0.02 * peri, true);
-        if (approx.rows === 4 && area > largestArea) {
-          largestArea = area;
-          const sx = dw / procW, sy = dh / procH;
-          bestQuad = [
-            [approx.data32S[0] * sx, approx.data32S[1] * sy],
-            [approx.data32S[2] * sx, approx.data32S[3] * sy],
-            [approx.data32S[4] * sx, approx.data32S[5] * sy],
-            [approx.data32S[6] * sx, approx.data32S[7] * sy],
-          ] as Quad;
+
+        if (area > largestArea) {
+          // convexHull + progressive epsilon → robust 4-corner detection
+          const hull = new cv.Mat();
+          try {
+            cv.convexHull(c, hull, false, true);
+            const peri = cv.arcLength(hull, true);
+            // Try increasingly lenient epsilons until we get a quad
+            for (const eps of [0.02, 0.03, 0.05, 0.08, 0.10]) {
+              const approx = new cv.Mat();
+              try {
+                cv.approxPolyDP(hull, approx, eps * peri, true);
+                if (approx.rows === 4) {
+                  largestArea = area;
+                  const sx = dw / procW, sy = dh / procH;
+                  bestQuad = [
+                    [approx.data32S[0] * sx, approx.data32S[1] * sy],
+                    [approx.data32S[2] * sx, approx.data32S[3] * sy],
+                    [approx.data32S[4] * sx, approx.data32S[5] * sy],
+                    [approx.data32S[6] * sx, approx.data32S[7] * sy],
+                  ] as Quad;
+                  approx.delete();
+                  break;
+                }
+              } finally { try { approx.delete(); } catch {} }
+            }
+          } finally { try { hull.delete(); } catch {} }
         }
-        approx.delete(); c.delete();
+        c.delete();
       }
-
-      // Gauge logic
-      const now = performance.now();
-      if (bestQuad) {
-        quadRef.current = bestQuad;
-        if (gaugeStartRef.current === null) gaugeStartRef.current = now;
-        gaugeRef.current = Math.min(100, ((now - gaugeStartRef.current) / 5000) * 100);
-        setDetected(true);
-        if (gaugeRef.current >= 100 && !isCapturingRef.current) {
-          isCapturingRef.current = true;
-          setTimeout(() => doCaptureWithCorrection(), 0);
-        }
-      } else {
-        quadRef.current = null;
-        gaugeStartRef.current = null;
-        gaugeRef.current = 0;
-        setDetected(false);
-      }
-
-      drawOverlay(overlay, bestQuad, gaugeRef.current);
-
+    } catch {
+      // OpenCV runtime error — skip frame silently
     } finally {
       [src, gray, blurred, edges, dilated, kernel, contours, hierarchy]
-        .forEach((m) => { try { m.delete(); } catch {} });
+        .forEach((m) => { try { m?.delete(); } catch {} });
     }
+
+    // Gauge logic
+    const now = performance.now();
+    if (bestQuad) {
+      quadRef.current = bestQuad;
+      if (gaugeStartRef.current === null) gaugeStartRef.current = now;
+      gaugeRef.current = Math.min(100, ((now - gaugeStartRef.current) / 5000) * 100);
+      setDetected(true);
+      if (gaugeRef.current >= 100 && !isCapturingRef.current) {
+        isCapturingRef.current = true;
+        setTimeout(() => doCaptureWithCorrection(), 0);
+      }
+    } else {
+      quadRef.current = null;
+      gaugeStartRef.current = null;
+      gaugeRef.current = 0;
+      setDetected(false);
+    }
+
+    drawOverlay(overlay, bestQuad, gaugeRef.current);
   }, []);
 
   // ── Draw detection overlay + gauge ────────────────────────────────────────
