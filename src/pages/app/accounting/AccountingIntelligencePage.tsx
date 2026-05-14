@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Upload, Brain, CheckCircle2, AlertTriangle, FileSpreadsheet,
-  Download, Sparkles, Eye, FileText, X, Info,
+  Download, Sparkles, Eye, FileText, X, Info, Camera,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ export default function AccountingIntelligencePage() {
   const [uploading, setUploading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const { data: transactionsResult, refetch } = useApi<{ data: BankTransaction[] }>("/api/accounting-intelligence/transactions?limit=100");
   const [selectedVat, setSelectedVat] = useState<Record<string, string>>({});
 
@@ -231,23 +232,51 @@ export default function AccountingIntelligencePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Input caméra mobile caché — capture directe arrière */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
           <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div className="space-y-1.5 flex-1">
               <Label>Fichier relevé bancaire</Label>
-              <Input
-                type="file"
-                accept={FORMAT_ACCEPT}
-                onChange={handleFileChange}
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="file"
+                  accept={FORMAT_ACCEPT}
+                  onChange={handleFileChange}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="sm:hidden flex-shrink-0"
+                  title="Prendre en photo (mobile)"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+              </div>
+              {file && (
+                <p className="text-[11px] text-primary font-medium truncate">
+                  Fichier sélectionné : {file.name}
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground">
                 Formats acceptés : CSV · XLS/XLSX · OFX/QBO · QIF · CAMT.053/054 (XML) · MT940 · CFONB120 · PDF
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={previewFile} disabled={!file || previewing}>
+              <Button variant="outline" onClick={previewFile} disabled={previewing}>
                 <Eye className="h-4 w-4 mr-2" />{previewing ? "Analyse…" : "Aperçu"}
               </Button>
-              <Button onClick={uploadFile} disabled={!file || uploading} className="gradient-primary text-primary-foreground">
+              <Button onClick={uploadFile} disabled={uploading} className="gradient-primary text-primary-foreground">
                 <Upload className="h-4 w-4 mr-2" />{uploading ? "Import…" : "Importer"}
               </Button>
             </div>
