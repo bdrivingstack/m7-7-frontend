@@ -9,7 +9,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { accountingCategories } from "@/lib/accounting-data";
 import { motion } from "framer-motion";
 import { useDemo } from "@/contexts/DemoContext";
-import { toast } from "@/hooks/use-toast";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
@@ -27,8 +26,7 @@ export default function CategoriesPage() {
           <h1 className="text-fluid-2xl font-display font-bold">Catégories comptables</h1>
           <p className="text-sm text-muted-foreground">Organisez vos transactions par catégorie</p>
         </div>
-        <Button size="sm" className="gradient-primary text-primary-foreground"
-          onClick={() => toast({ title: "Bientôt disponible", description: "La gestion des catégories sera disponible prochainement." })}>
+        <Button size="sm" className="gradient-primary text-primary-foreground">
           <Plus className="h-3.5 w-3.5 mr-1.5" />Nouvelle catégorie
         </Button>
       </div>

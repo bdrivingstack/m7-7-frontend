@@ -180,6 +180,25 @@ export default function ReportsPage() {
   const totalProfit   = isDemo ? revenueChartData.reduce((s, d) => s + d.profit, 0)  : (apiReport?.kpis?.netResult ?? 0);
   const avgMargin     = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
 
+  // Chart / KPI data — zéro en mode réel sans données
+  const chartRevenue      = isDemo ? revenueChartData    : [];
+  const chartRevenueN1    = isDemo ? revenueWithN1       : [];
+  const chartQuarterly    = isDemo ? quarterly           : [];
+  const chartRevByCat     = isDemo ? revenueByCategory   : [];
+  const chartExpByCat     = isDemo ? expensesByCategory  : [];
+  const chartDSO          = isDemo ? dsoHistory          : [];
+  const chartSales        = isDemo ? salesPerf           : [];
+  const chartRadar        = isDemo ? radarData           : [];
+  const chartTopClients   = isDemo ? topClients          : [];
+  const chartTopProducts  = isDemo ? topProducts         : [];
+  const kpiDSO            = isDemo ? dashboardKPIs.dso            : 0;
+  const kpiConversion     = isDemo ? dashboardKPIs.conversionRate  : 0;
+  const kpiQuotesWon      = isDemo ? dashboardKPIs.quotesWon       : 0;
+  const kpiQuotesLost     = isDemo ? dashboardKPIs.quotesLost      : 0;
+  const kpiInvoicesPaid   = isDemo ? dashboardKPIs.invoicesPaid    : 1;
+  const kpiUnpaid         = isDemo ? dashboardKPIs.unpaid          : 0;
+  const kpiUnpaidCount    = isDemo ? dashboardKPIs.unpaidCount     : 0;
+
   const handleExportPDF = async (type: "monthly" | "annual") => {
     setExporting(true);
     await new Promise(r => setTimeout(r, 1200));
@@ -250,7 +269,7 @@ export default function ReportsPage() {
         <KpiCard label="Charges totales" value={fmtEUR(totalExpenses)}
           trend={-4.1} trendLabel="vs N-1" icon={ArrowDownRight}
           tooltip={<InfoTooltip title="Charges totales" description="Somme de toutes les dépenses enregistrées sur la période : achats, frais généraux, charges sociales, amortissements." benefit="Surveiller l'évolution des charges permet d'identifier les postes à optimiser." />} />
-        <KpiCard label="DSO moyen" value={`${dashboardKPIs.dso}j`} sub="Délai de paiement"
+        <KpiCard label="DSO moyen" value={`${kpiDSO}j`} sub="Délai de paiement"
           trend={-5.8} trendLabel="vs N-1" icon={Clock} color="text-warning"
           tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.delaiPaiement} />} />
       </motion.div>
@@ -292,7 +311,7 @@ export default function ReportsPage() {
             <CardContent>
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueChartData}>
+                  <AreaChart data={chartRevenue}>
                     <defs>
                       <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(250 75% 57%)" stopOpacity={0.25} />
@@ -330,9 +349,9 @@ export default function ReportsPage() {
                   <div className="h-[180px] w-[180px] flex-shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <RePieChart>
-                        <Pie data={revenueByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                        <Pie data={chartRevByCat} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
                           dataKey="value" paddingAngle={2}>
-                          {revenueByCategory.map((_, i) => (
+                          {chartRevByCat.map((_, i) => (
                             <Cell key={i} fill={COLORS[i % COLORS.length]} />
                           ))}
                         </Pie>
@@ -341,7 +360,7 @@ export default function ReportsPage() {
                     </ResponsiveContainer>
                   </div>
                   <div className="flex-1 space-y-2">
-                    {revenueByCategory.map((cat, i) => (
+                    {chartRevByCat.map((cat, i) => (
                       <div key={cat.name} className="flex items-center gap-2">
                         <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
                         <span className="text-xs flex-1 truncate text-muted-foreground">{cat.name}</span>
@@ -362,7 +381,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2.5">
-                  {expensesByCategory.map((cat, i) => (
+                  {chartExpByCat.map((cat, i) => (
                     <div key={cat.name}>
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-muted-foreground">{cat.name}</span>
@@ -395,7 +414,7 @@ export default function ReportsPage() {
             <CardContent>
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueWithN1} barGap={2}>
+                  <BarChart data={chartRevenueN1} barGap={2}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v / 1000}k`} />
@@ -429,7 +448,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...quarterly].reverse().map((q, i, arr) => {
+                  {[...chartQuarterly].reverse().map((q, i, arr) => {
                     const prev = arr[i + 1];
                     const evol = prev ? Math.round(((q.revenue - prev.revenue) / prev.revenue) * 100) : null;
                     const margin = Math.round((q.profit / q.revenue) * 100);
@@ -464,17 +483,17 @@ export default function ReportsPage() {
         <TabsContent value="commercial" className="space-y-4 mt-4">
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KpiCard label="Taux de conversion" value={`${dashboardKPIs.conversionRate}%`}
+            <KpiCard label="Taux de conversion" value={`${kpiConversion}%`}
               sub="Devis → Facture" trend={4.2} trendLabel="vs N-1" icon={Target} color="text-primary"
               tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.tauxConversion} />} />
-            <KpiCard label="Devis gagnés" value={`${dashboardKPIs.quotesWon}`}
-              sub={`${dashboardKPIs.quotesLost} perdus`} trend={12.1} trendLabel="vs N-1" icon={CheckCircle} color="text-success"
+            <KpiCard label="Devis gagnés" value={`${kpiQuotesWon}`}
+              sub={`${kpiQuotesLost} perdus`} trend={12.1} trendLabel="vs N-1" icon={CheckCircle} color="text-success"
               tooltip={<InfoTooltip title="Devis gagnés" description="Nombre de devis acceptés par vos clients sur la période. Les devis perdus sont ceux refusés ou expirés." formula="Devis avec statut = ACCEPTED" benefit="Suivre ce chiffre permet d'ajuster votre stratégie commerciale et de relancer les devis en attente." />} />
-            <KpiCard label="Panier moyen" value={fmtEUR(Math.round(totalRevenue / dashboardKPIs.invoicesPaid))}
+            <KpiCard label="Panier moyen" value={fmtEUR(Math.round(totalRevenue / kpiInvoicesPaid))}
               trend={6.8} trendLabel="vs N-1" icon={FileText}
               tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.panierMoyen} />} />
-            <KpiCard label="CA top client" value={fmtEUR(topClients[0].revenue)}
-              sub={topClients[0].name} icon={Users} color="text-primary"
+            <KpiCard label="CA top client" value={fmtEUR(chartTopClients[0]?.revenue ?? 0)}
+              sub={chartTopClients[0]?.name ?? "—"} icon={Users} color="text-primary"
               tooltip={<InfoTooltip title="CA top client" description="Chiffre d'affaires généré par votre meilleur client sur la période. Une forte dépendance à un seul client représente un risque." benefit="Si ce client dépasse 30% de votre CA total, diversifiez votre portefeuille client." />} />
           </div>
 
@@ -489,7 +508,7 @@ export default function ReportsPage() {
             <CardContent>
               <div className="h-[240px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={salesPerf} barGap={4}>
+                  <BarChart data={chartSales} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
@@ -514,7 +533,7 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={salesPerf}>
+                    <AreaChart data={chartSales}>
                       <defs>
                         <linearGradient id="gMontant" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(142 70% 45%)" stopOpacity={0.3} />
@@ -542,8 +561,8 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topProducts.map((p, i) => {
-                    const pct = Math.round((p.revenue / topProducts[0].revenue) * 100);
+                  {chartTopProducts.map((p, i) => {
+                    const pct = chartTopProducts[0] ? Math.round((p.revenue / chartTopProducts[0].revenue) * 100) : 0;
                     return (
                       <div key={p.name}>
                         <div className="flex justify-between text-xs mb-1">
@@ -583,10 +602,10 @@ export default function ReportsPage() {
             <KpiCard label="Taux fidélisation" value="87%" sub="clients récurrents"
               trend={3.2} trendLabel="vs N-1" icon={CheckCircle} color="text-success"
               tooltip={<InfoTooltip title="Taux de fidélisation" description="Pourcentage de clients ayant passé commande sur au moins 2 périodes consécutives." formula="(Clients récurrents ÷ Clients totaux) × 100" benefit="Un taux élevé réduit les coûts d'acquisition et stabilise votre chiffre d'affaires." />} />
-            <KpiCard label="Créances client" value={fmtEUR(dashboardKPIs.unpaid)}
-              sub={`${dashboardKPIs.unpaidCount} factures`} icon={AlertTriangle} color="text-warning"
+            <KpiCard label="Créances client" value={fmtEUR(kpiUnpaid)}
+              sub={`${kpiUnpaidCount} factures`} icon={AlertTriangle} color="text-warning"
               tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.facturesEnRetard} />} />
-            <KpiCard label="DSO actuel" value={`${dashboardKPIs.dso}j`}
+            <KpiCard label="DSO actuel" value={`${kpiDSO}j`}
               sub="Délai moyen paiement" trend={-5.8} trendLabel="vs N-1" icon={Clock}
               tooltip={<InfoTooltip {...DASHBOARD_TOOLTIPS.delaiPaiement} />} />
           </div>
@@ -612,8 +631,9 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {topClients.map((client, i) => {
-                    const pct = Math.round((client.revenue / topClients.reduce((s, c) => s + c.revenue, 0)) * 100);
+                  {chartTopClients.map((client, i) => {
+                    const totalCA = chartTopClients.reduce((s, c) => s + c.revenue, 0);
+                    const pct = totalCA > 0 ? Math.round((client.revenue / totalCA) * 100) : 0;
                     return (
                       <tr key={client.name} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                         <td className="p-3">
@@ -661,7 +681,7 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dsoHistory}>
+                    <LineChart data={chartDSO}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 92%)" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} domain={[20, 50]} unit="j" />
@@ -686,9 +706,9 @@ export default function ReportsPage() {
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <RePieChart>
-                      <Pie data={topClients} cx="50%" cy="50%" innerRadius={45} outerRadius={75}
+                      <Pie data={chartTopClients} cx="50%" cy="50%" innerRadius={45} outerRadius={75}
                         dataKey="revenue" nameKey="name" paddingAngle={2}>
-                        {topClients.map((_, i) => (
+                        {chartTopClients.map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />
                         ))}
                       </Pie>
@@ -717,7 +737,7 @@ export default function ReportsPage() {
               <CardContent>
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData}>
+                    <RadarChart data={chartRadar}>
                       <PolarGrid stroke="hsl(220 16% 90%)" />
                       <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
                       <Radar name="Score" dataKey="value" stroke="hsl(250 75% 57%)"

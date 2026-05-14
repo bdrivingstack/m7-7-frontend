@@ -77,9 +77,15 @@ export default function VATPage() {
   const isDemo = !!demo?.isDemo;
   const [selectedPeriod, setSelectedPeriod] = useState("T1-2024");
 
-  const vatDeclarations = isDemo ? declarations : [];
+  const vatDeclarations    = isDemo ? declarations    : [];
+  const displayVatLines    = isDemo ? vatLines        : [];
+  const displayMonthlyData = isDemo ? monthlyVATData  : [];
+
   const EMPTY_DECL: VATDeclaration = { id: "—", period: "—", periodLabel: "—", collected: 0, deductible: 0, due: 0, status: "upcoming", deadline: new Date().toISOString() };
   const current = vatDeclarations.find((d) => d.period === selectedPeriod) ?? EMPTY_DECL;
+
+  const avg = (key: "collected" | "deductible" | "net") =>
+    displayMonthlyData.length > 0 ? Math.round(displayMonthlyData.reduce((s, m) => s + m[key], 0) / displayMonthlyData.length) : 0;
   const sc = statusConfig[current.status];
   const StatusIcon = sc.icon;
 
@@ -191,11 +197,11 @@ export default function VATPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <ArrowUpRight className="h-4 w-4 text-primary" />TVA collectée
-                  <span className="text-lg font-bold ml-auto">{fmt(vatLines.filter(l => l.type === "collected").reduce((s, l) => s + l.vat, 0))}</span>
+                  <span className="text-lg font-bold ml-auto">{fmt(displayVatLines.filter(l => l.type === "collected").reduce((s, l) => s + l.vat, 0))}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {vatLines.filter((l) => l.type === "collected").map((line, i) => (
+                {displayVatLines.filter((l) => l.type === "collected").map((line, i) => (
                   <div key={i} className="flex items-center justify-between text-xs p-2 rounded-lg hover:bg-muted/40 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{line.label}</p>
@@ -212,11 +218,11 @@ export default function VATPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <ArrowDownRight className="h-4 w-4 text-success" />TVA déductible
-                  <span className="text-lg font-bold text-success ml-auto">-{fmt(vatLines.filter(l => l.type === "deductible").reduce((s, l) => s + l.vat, 0))}</span>
+                  <span className="text-lg font-bold text-success ml-auto">-{fmt(displayVatLines.filter(l => l.type === "deductible").reduce((s, l) => s + l.vat, 0))}</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {vatLines.filter((l) => l.type === "deductible").map((line, i) => (
+                {displayVatLines.filter((l) => l.type === "deductible").map((line, i) => (
                   <div key={i} className="flex items-center justify-between text-xs p-2 rounded-lg hover:bg-muted/40 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{line.label}</p>
@@ -331,7 +337,7 @@ export default function VATPage() {
             <CardContent>
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyVATData}>
+                  <BarChart data={displayMonthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} />
@@ -353,7 +359,7 @@ export default function VATPage() {
                   <p className="text-xs text-muted-foreground">Moyenne collectée / mois</p>
                   <InfoTooltip title="Moyenne TVA collectée / mois" description="Moyenne mensuelle de la TVA facturée à vos clients sur les 6 derniers mois." benefit="Utilisez cette moyenne pour estimer votre TVA collectée des prochains mois et anticiper votre déclaration." />
                 </div>
-                <p className="text-fluid-xl font-display font-bold">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.collected, 0) / monthlyVATData.length))}</p>
+                <p className="text-fluid-xl font-display font-bold">{fmt(avg("collected"))}</p>
               </CardContent>
             </Card>
             <Card>
@@ -363,7 +369,7 @@ export default function VATPage() {
                   <p className="text-xs text-muted-foreground">Moyenne déductible / mois</p>
                   <InfoTooltip title="Moyenne TVA déductible / mois" description="Moyenne mensuelle de la TVA récupérable sur vos achats et dépenses professionnelles." benefit="Plus cette moyenne est élevée, moins vous reversez à l'État. Assurez-vous de collecter toutes vos factures d'achat." />
                 </div>
-                <p className="text-xl font-display font-bold text-success">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.deductible, 0) / monthlyVATData.length))}</p>
+                <p className="text-xl font-display font-bold text-success">{fmt(avg("deductible"))}</p>
               </CardContent>
             </Card>
             <Card>
@@ -373,7 +379,7 @@ export default function VATPage() {
                   <p className="text-xs text-muted-foreground">Moyenne nette / mois</p>
                   <InfoTooltip title="Moyenne TVA nette / mois" description="Moyenne mensuelle du montant que vous devrez reverser à l'État lors de votre prochaine déclaration." formula="Moyenne collectée − Moyenne déductible" benefit="Provisionnez ce montant chaque mois pour ne jamais être pris au dépourvu à l'échéance." />
                 </div>
-                <p className="text-xl font-display font-bold text-warning">{fmt(Math.round(monthlyVATData.reduce((s, m) => s + m.net, 0) / monthlyVATData.length))}</p>
+                <p className="text-xl font-display font-bold text-warning">{fmt(avg("net"))}</p>
               </CardContent>
             </Card>
           </div>

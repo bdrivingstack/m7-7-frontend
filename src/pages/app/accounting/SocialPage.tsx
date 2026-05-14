@@ -82,8 +82,10 @@ export default function SocialPage() {
   const isDemo = !!demo?.isDemo;
   const [periodFilter, setPeriodFilter] = useState<"all" | "T1 2024" | "T4 2023">("all");
 
-  const socialData    = isDemo ? socialContributions : EMPTY_SOCIAL_CONTRIB;
-  const socialPayments = isDemo ? payments : [];
+  const socialData           = isDemo ? socialContributions : EMPTY_SOCIAL_CONTRIB;
+  const socialPayments       = isDemo ? payments            : [];
+  const displayCotisLines    = isDemo ? cotisationLines     : [];
+  const displayHistoricalData = isDemo ? historicalData     : [];
 
   const filtered = socialPayments.filter((p) => {
     if (periodFilter !== "all" && p.period !== periodFilter) return false;
@@ -297,7 +299,7 @@ export default function SocialPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cotisationLines.map((line, i) => (
+                  {displayCotisLines.map((line, i) => (
                     <tr key={i} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
                       <td className="p-3">
                         <p className="font-medium">{line.label}</p>
@@ -314,7 +316,7 @@ export default function SocialPage() {
                     <td className="p-3">Total annuel estimé</td>
                     <td className="p-3 text-right">{socialData.rate}%</td>
                     <td className="p-3 text-right">{fmt(47850)}</td>
-                    <td className="p-3 text-right text-lg font-display">{fmt(cotisationLines.reduce((s, l) => s + l.amount, 0))}</td>
+                    <td className="p-3 text-right text-lg font-display">{fmt(displayCotisLines.reduce((s, l) => s + l.amount, 0))}</td>
                   </tr>
                 </tbody>
               </table>
@@ -337,7 +339,7 @@ export default function SocialPage() {
             <CardContent>
               <div className="h-[260px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={historicalData}>
+                  <BarChart data={displayHistoricalData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 16% 90%)" />
                     <XAxis dataKey="period" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}€`} />
