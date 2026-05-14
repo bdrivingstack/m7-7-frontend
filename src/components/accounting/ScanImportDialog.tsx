@@ -129,7 +129,6 @@ function sortCorners(pts: [number, number][]): Quad {
   const tlIndex = sorted.reduce((best, p, i) => (p[0] + p[1] < sorted[best][0] + sorted[best][1] ? i : best), 0);
   const rotated = [...sorted.slice(tlIndex), ...sorted.slice(0, tlIndex)] as Quad;
 
-  // Ensure clockwise TL,TR,BR,BL. If second point is below-left instead of top-right, reverse order.
   if (rotated[1][1] > rotated[3][1]) {
     return [rotated[0], rotated[3], rotated[2], rotated[1]] as Quad;
   }
@@ -140,7 +139,6 @@ function normalizeQuadForPortrait(q: Quad): Quad {
   const s = sortCorners([...q]);
   const top = distance(s[0], s[1]);
   const right = distance(s[1], s[2]);
-  // If detected as landscape, rotate to portrait output source order.
   if (top > right) return [s[3], s[0], s[1], s[2]] as Quad;
   return s;
 }
@@ -421,11 +419,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     const candidates: DetectionCandidate[] = [];
     let src: any, gray: any, eq: any, blurred: any, edges: any, dilated: any;
     let adaptive: any, morph: any, kernel3: any, kernel5: any, kernel11: any, houghLines: any;
+    let darkText: any, textClosed: any, textDilated: any, textKernel: any, tallKernel: any;
     let contours: any, hierarchy: any;
 
     const contentScore = (q: Quad, source: string): number => {
-      // Éviter les motifs du canapé/tapis ou grands aplats.
-      // Vérifier que l'intérieur ressemble à un document : zone claire + détails internes.
       if (!gray || !edges) return 0.6;
       const mask = new cv.Mat.zeros(proc.height, proc.width, cv.CV_8U);
       const ring = new cv.Mat();
@@ -458,8 +455,6 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
         const contrastScore = brightnessDelta > 18 ? 1 : brightnessDelta > 6 ? 0.72 : 0.46;
         const textDetailScore = edgeDensityIn > 0.018 ? 1 : edgeDensityIn > 0.009 ? 0.72 : 0.34;
         const backgroundPenalty = edgeDensityOut > edgeDensityIn * 1.8 ? 0.55 : 1;
-
-        // Hough est pénalisé si le contenu n'est pas convaincant (risque motifs canapé/tapis).
         const sourcePenalty = source.includes("hough") && textDetailScore < 0.72 ? 0.62 : 1;
         return Math.max(0.05, Math.min(1.25, paperBrightnessScore * 0.34 + contrastScore * 0.26 + textDetailScore * 0.4)) * backgroundPenalty * sourcePenalty;
       } finally {
@@ -484,7 +479,8 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       const content = contentScore(q, source);
       if (content < 0.34) return;
 
-      const srcMultiplier = source.includes("edge") ? 1.12 : source.includes("adaptive") ? 1.04 : source.includes("hough") ? 0.96 : 0.82;
+      // text-receipt candidates get highest priority — they are built from actual document content
+      const srcMultiplier = source.includes("text-receipt") ? 1.34 : source.includes("edge") ? 1.12 : source.includes("adaptive") ? 1.04 : source.includes("hough") ? 0.96 : 0.82;
       candidates.push({
         quad: q,
         area,
@@ -492,6 +488,116 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
         source,
         confidence: Math.min(1, confidence * content),
       });
+    };
+
+    // ── Strategy 0: text-cluster — robust on wrinkled/grey paper ─────────────
+    // Each word/line becomes a small zone; dilation merges nearby zones;
+    // vertically-aligned text blocks are grouped and their bounding box becomes the document quad.
+    const collectTextReceiptCandidate = () => {
+      if (!gray) return;
+      darkText = new cv.Mat();
+      textClosed = new cv.Mat();
+      textDilated = new cv.Mat();
+      textKernel = cv.Mat.ones(7, 3, cv.CV_8U);
+      tallKernel = cv.Mat.ones(19, 7, cv.CV_8U);
+
+      type TextRect = { x: number; y: number; width: number; height: number; area: number; cx: number; cy: number };
+
+      try {
+        cv.adaptiveThreshold(gray, darkText, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 31, 13);
+        cv.morphologyEx(darkText, textClosed, cv.MORPH_OPEN, textKernel);
+        cv.dilate(textClosed, textDilated, tallKernel, new cv.Point(-1, -1), 1);
+
+        const cText = new cv.MatVector();
+        const hText = new cv.Mat();
+        try {
+          cv.findContours(textDilated, cText, hText, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+          const frameArea = proc.width * proc.height;
+          const rawRects: TextRect[] = [];
+
+          for (let i = 0; i < cText.size(); i++) {
+            const cnt = cText.get(i);
+            try {
+              const rect = cv.boundingRect(cnt);
+              const area = rect.width * rect.height;
+              const aspect = Math.max(rect.width, rect.height) / Math.max(1, Math.min(rect.width, rect.height));
+
+              // Remove isolated noise, fold marks, background dots and large flat regions
+              if (
+                area < frameArea * 0.0012 ||
+                area > frameArea * 0.22 ||
+                rect.width < 8 ||
+                rect.height < 6 ||
+                aspect > 18
+              ) continue;
+
+              rawRects.push({
+                x: rect.x, y: rect.y,
+                width: rect.width, height: rect.height,
+                area,
+                cx: rect.x + rect.width / 2,
+                cy: rect.y + rect.height / 2,
+              });
+            } finally { try { cnt.delete(); } catch {} }
+          }
+
+          if (!rawRects.length) return;
+
+          // Find the main vertical axis of the receipt then group aligned blocks
+          const sortedByArea = [...rawRects].sort((a, b) => b.area - a.area);
+          const seed = sortedByArea[0];
+          const medianWidth = sortedByArea[Math.floor(Math.min(sortedByArea.length - 1, 4))]?.width || seed.width;
+          const axisTolerance = Math.max(proc.width * 0.11, medianWidth * 1.25, 38);
+
+          const aligned = rawRects.filter((r) => {
+            const verticalCompatible = Math.abs(r.cx - seed.cx) <= axisTolerance;
+            const overlapsMainColumn = r.x < seed.x + seed.width + axisTolerance && r.x + r.width > seed.x - axisTolerance;
+            const plausibleText = r.area >= frameArea * 0.0012 && r.height <= proc.height * 0.28;
+            return plausibleText && (verticalCompatible || overlapsMainColumn);
+          });
+
+          const group = aligned.length >= 2 ? aligned : sortedByArea.slice(0, Math.min(4, sortedByArea.length));
+          if (!group.length) return;
+
+          // Merge minX/minY/maxX/maxY of all retained text blocks
+          const minX = Math.min(...group.map((r) => r.x));
+          const minY = Math.min(...group.map((r) => r.y));
+          const maxX = Math.max(...group.map((r) => r.x + r.width));
+          const maxY = Math.max(...group.map((r) => r.y + r.height));
+          const textW = maxX - minX;
+          const textH = maxY - minY;
+
+          if (textW < proc.width * 0.05 || textH < proc.height * 0.16) return;
+
+          // Document padding: text is always slightly inside the receipt edges
+          const padX = Math.max(16, textW * 0.22);
+          const padTop = Math.max(20, textH * 0.18);
+          const padBottom = Math.max(28, textH * 0.24);
+
+          const x1 = Math.max(0, minX - padX);
+          const y1 = Math.max(0, minY - padTop);
+          const x2 = Math.min(proc.width, maxX + padX);
+          const y2 = Math.min(proc.height, maxY + padBottom);
+
+          const q = sortCorners([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]);
+          pushCandidate(q, "text-receipt-cluster", polygonArea(q));
+
+          // Wider variant for wrinkled receipts with sparse printing at top/bottom
+          const widePadX = Math.max(20, textW * 0.30);
+          const widePadTop = Math.max(24, textH * 0.24);
+          const widePadBottom = Math.max(34, textH * 0.32);
+          const qWide = sortCorners([
+            [Math.max(0, minX - widePadX), Math.max(0, minY - widePadTop)],
+            [Math.min(proc.width, maxX + widePadX), Math.max(0, minY - widePadTop)],
+            [Math.min(proc.width, maxX + widePadX), Math.min(proc.height, maxY + widePadBottom)],
+            [Math.max(0, minX - widePadX), Math.min(proc.height, maxY + widePadBottom)],
+          ]);
+          pushCandidate(qWide, "text-receipt-wide", polygonArea(qWide));
+        } finally {
+          try { cText?.delete(); hText?.delete(); } catch {}
+        }
+      } catch {}
     };
 
     const collectFromMask = (mask: any, source: string, retrieval = cv.RETR_EXTERNAL) => {
@@ -566,7 +672,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       kernel5 = cv.Mat.ones(5, 5, cv.CV_8U);
       kernel11 = cv.Mat.ones(11, 11, cv.CV_8U);
 
-      // 1) Canny : priorité aux vrais contours du ticket/document.
+      // 0) Text-cluster: highest priority — works on white surface, wrinkled paper, any background
+      collectTextReceiptCandidate();
+
+      // 1) Canny: true document/ticket edge contours
       edges = new cv.Mat();
       dilated = new cv.Mat();
       const low = quality.contrast < 25 ? 10 : 22;
@@ -576,20 +685,20 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       cv.morphologyEx(dilated, dilated, cv.MORPH_CLOSE, kernel5);
       collectFromMask(dilated, "edge+canny+close", cv.RETR_EXTERNAL);
 
-      // 2) Adaptive threshold : utile sur papier blanc, gris ou surface claire.
+      // 2) Adaptive threshold: white/grey paper on bright surfaces
       adaptive = new cv.Mat();
       morph = new cv.Mat();
       cv.adaptiveThreshold(blurred, adaptive, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 25, 9);
       cv.morphologyEx(adaptive, morph, cv.MORPH_CLOSE, kernel5, new cv.Point(-1, -1), 2);
       collectFromMask(morph, "adaptive-inv", cv.RETR_EXTERNAL);
 
-      // 3) Hough Lines en secours uniquement : scoré avec contenu pour éviter les motifs du décor.
+      // 3) Hough Lines: fallback only, penalised by content score against sofa/carpet patterns
       houghLines = new cv.Mat();
       cv.HoughLinesP(dilated, houghLines, 1, Math.PI / 180, 52, Math.min(proc.width, proc.height) * 0.24, 18);
       const houghQuad = buildHoughQuad(houghLines, proc.width, proc.height);
       if (houghQuad) pushCandidate(houghQuad, "hough-lines");
 
-      // 4) Otsu en fallback très faible, jamais prioritaire.
+      // 4) Otsu: last resort, never prioritised
       const otsu = new cv.Mat();
       const otsuInv = new cv.Mat();
       try {
@@ -606,7 +715,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     } catch {
       return null;
     } finally {
-      [src, gray, eq, blurred, edges, dilated, adaptive, morph, kernel3, kernel5, kernel11, houghLines]
+      [src, gray, eq, blurred, edges, dilated, adaptive, morph, kernel3, kernel5, kernel11, houghLines, darkText, textClosed, textDilated, textKernel, tallKernel]
         .forEach((m) => { try { m?.delete(); } catch {} });
     }
 
@@ -663,7 +772,6 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     const perspectiveChange = movement > MAX_QUAD_MOVEMENT_RATIO || areaChange > MAX_QUAD_AREA_CHANGE;
 
     if (!prev || perspectiveChange) {
-      // Tout changement de position/perspective remet la jauge à zéro immédiatement.
       prevQuadRef.current = candidateDisplayQuad;
       displayedQuadRef.current = candidateDisplayQuad;
       stableFrameRef.current = 1;
@@ -733,11 +841,11 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     ctx.moveTo(quad[0][0], quad[0][1]);
     for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
     ctx.closePath();
-    ctx.fillStyle = "rgba(56,189,248,0.14)";
+    ctx.fillStyle = "rgba(37,99,235,0.28)";
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(56,189,248,0.75)";
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "rgba(29,78,216,0.95)";
+    ctx.lineWidth = 3.5;
     ctx.stroke();
 
     if (progress > 0) {
@@ -747,8 +855,8 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       ctx.moveTo(quad[0][0], quad[0][1]);
       for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
       ctx.closePath();
-      ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 6;
+      ctx.strokeStyle = "#1d4ed8";
+      ctx.lineWidth = 7;
       ctx.shadowColor = "rgba(56,189,248,0.95)";
       ctx.shadowBlur = 14;
       ctx.setLineDash([dashLen, perim + 1]);
@@ -760,8 +868,8 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     quad.forEach(([x, y]) => {
       ctx.beginPath();
       ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = "#38bdf8";
-      ctx.shadowColor = "#38bdf8";
+      ctx.fillStyle = "#1d4ed8";
+      ctx.shadowColor = "#1d4ed8";
       ctx.shadowBlur = 16;
       ctx.fill();
       ctx.shadowBlur = 0;
@@ -779,7 +887,79 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     }
   };
 
-  const enhanceScanCanvas = (canvas: HTMLCanvasElement) => {
+  // ── Post-warp crop: removes remaining table/sofa from the final image ─────
+  const cropCanvasToDocumentOnly = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+    const cv = window.cv;
+    if (!cv?.Mat) return canvas;
+
+    let src: any, gray: any, bin: any, dilated: any, kOpen: any, kDilate: any, contours: any, hierarchy: any;
+    try {
+      src = cv.imread(canvas);
+      gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+      bin = new cv.Mat();
+      cv.adaptiveThreshold(gray, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 31, 12);
+
+      kOpen = cv.Mat.ones(3, 3, cv.CV_8U);
+      kDilate = cv.Mat.ones(15, 7, cv.CV_8U);
+      cv.morphologyEx(bin, bin, cv.MORPH_OPEN, kOpen);
+      dilated = new cv.Mat();
+      cv.dilate(bin, dilated, kDilate, new cv.Point(-1, -1), 1);
+
+      contours = new cv.MatVector();
+      hierarchy = new cv.Mat();
+      cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      const rects: Array<{ x: number; y: number; width: number; height: number; area: number }> = [];
+      const frameArea = canvas.width * canvas.height;
+      for (let i = 0; i < contours.size(); i++) {
+        const cnt = contours.get(i);
+        try {
+          const r = cv.boundingRect(cnt);
+          const area = r.width * r.height;
+          if (area > frameArea * 0.0008 && area < frameArea * 0.35 && r.width > 8 && r.height > 5) {
+            rects.push({ ...r, area });
+          }
+        } finally { try { cnt.delete(); } catch {} }
+      }
+
+      if (rects.length < 2) return canvas;
+
+      const minX = Math.min(...rects.map((r) => r.x));
+      const minY = Math.min(...rects.map((r) => r.y));
+      const maxX = Math.max(...rects.map((r) => r.x + r.width));
+      const maxY = Math.max(...rects.map((r) => r.y + r.height));
+      const textW = maxX - minX;
+      const textH = maxY - minY;
+
+      if (textW < canvas.width * 0.18 || textH < canvas.height * 0.18) return canvas;
+
+      const padX = Math.max(18, textW * 0.20);
+      const padTop = Math.max(22, textH * 0.16);
+      const padBottom = Math.max(28, textH * 0.22);
+
+      const x = Math.max(0, Math.floor(minX - padX));
+      const y = Math.max(0, Math.floor(minY - padTop));
+      const cw = Math.min(canvas.width - x, Math.ceil(textW + padX * 2));
+      const ch = Math.min(canvas.height - y, Math.ceil(textH + padTop + padBottom));
+
+      // Keep warp if crop would leave almost the same area (perspective was already tight)
+      if (cw * ch > frameArea * 0.94) return canvas;
+
+      const cropped = document.createElement("canvas");
+      cropped.width = cw;
+      cropped.height = ch;
+      cropped.getContext("2d")!.drawImage(canvas, x, y, cw, ch, 0, 0, cw, ch);
+      return cropped;
+    } catch {
+      return canvas;
+    } finally {
+      [src, gray, bin, dilated, kOpen, kDilate, contours, hierarchy].forEach((m) => { try { m?.delete(); } catch {} });
+    }
+  };
+
+  const enhanceScanCanvas = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
     const cv = window.cv;
     if (!cv?.Mat) return canvas;
 
@@ -827,9 +1007,18 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     capCtx.filter = "none";
 
     const quad = quadRef.current;
-    let outCanvas = capCanvas;
 
-    if (quad && window.cv?.Mat && overlay?.width && overlay?.height) {
+    // Blocked: if no document detected, never save a full-frame photo with background
+    if (!quad) {
+      toast.error("Document non détecté : rapprochez le document et réessayez.");
+      isCapturingRef.current = false;
+      resetDetection();
+      return;
+    }
+
+    let outCanvas: HTMLCanvasElement = capCanvas;
+
+    if (window.cv?.Mat && overlay?.width && overlay?.height) {
       const sx = vw / overlay.width;
       const sy = vh / overlay.height;
       const scaledQuad = normalizeQuadForPortrait(quad.map(([x, y]) => [x * sx, y * sy] as [number, number]) as Quad);
@@ -863,10 +1052,17 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
           warped.width = w;
           warped.height = h;
           cv.imshow(warped, dst);
-          outCanvas = enhanceScanCanvas(warped);
+
+          // Double crop: after perspective warp, crop again to document-only content
+          const documentOnly = cropCanvasToDocumentOnly(warped);
+          outCanvas = enhanceScanCanvas(documentOnly);
         }
       } catch {
-        outCanvas = capCanvas;
+        // warp failed — still blocked from saving raw frame
+        toast.error("Correction perspective impossible. Réessayez.");
+        isCapturingRef.current = false;
+        resetDetection();
+        return;
       } finally {
         [src, srcPts, dstPts, matrix, dst].forEach((m) => { try { m?.delete(); } catch {} });
       }
