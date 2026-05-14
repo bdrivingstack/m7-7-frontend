@@ -24,7 +24,7 @@ const vatLabels: Record<string, string> = {
   UNKNOWN: "À qualifier",
 };
 
-const FORMAT_ACCEPT = ".csv,.xls,.xlsx,.ofx,.qbo,.qif,.xml,.mt940,.sta,.cfonb,.txt";
+const FORMAT_ACCEPT = ".csv,.xls,.xlsx,.ofx,.qbo,.qif,.xml,.mt940,.sta,.cfonb,.txt,.pdf";
 
 const FORMAT_LABELS: Record<string, string> = {
   "BANK_CSV": "CSV",
@@ -181,7 +181,7 @@ export default function AccountingIntelligencePage() {
           </div>
           <h1 className="text-fluid-2xl font-display font-bold">Extraction & qualification comptable</h1>
           <p className="text-sm text-muted-foreground max-w-3xl">
-            CSV · Excel · OFX · QIF · CAMT.053/054 · MT940 · CFONB120 — TVA auto-qualifiée par IA
+            CSV · Excel · OFX · QIF · CAMT.053/054 · MT940 · CFONB120 · PDF — TVA auto-qualifiée par IA
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -218,7 +218,7 @@ export default function AccountingIntelligencePage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Formats supportés</p>
-            <p className="text-sm font-medium">CSV · XLS/X · OFX · QIF · CAMT · MT940 · CFONB</p>
+            <p className="text-sm font-medium">CSV · XLS/X · OFX · QIF · CAMT · MT940 · CFONB · PDF</p>
           </CardContent>
         </Card>
       </div>
@@ -240,7 +240,7 @@ export default function AccountingIntelligencePage() {
                 onChange={handleFileChange}
               />
               <p className="text-[11px] text-muted-foreground">
-                Formats acceptés : CSV · XLS/XLSX · OFX/QBO · QIF · CAMT.053/054 (XML) · MT940 · CFONB120
+                Formats acceptés : CSV · XLS/XLSX · OFX/QBO · QIF · CAMT.053/054 (XML) · MT940 · CFONB120 · PDF
               </p>
             </div>
             <div className="flex gap-2">

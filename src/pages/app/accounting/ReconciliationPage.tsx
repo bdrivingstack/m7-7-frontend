@@ -13,35 +13,15 @@ import { Link } from "react-router-dom";
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
-const matched   = reconciliationItems.filter(r => r.status === "matched");
-const unmatched = reconciliationItems.filter(r => r.status === "unmatched");
-
 export default function ReconciliationPage() {
   const demo   = useDemo();
   const isDemo = !!demo?.isDemo;
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <GitBranch className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Rapprochement bancaire</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune transaction bancaire à rapprocher.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Importez d'abord vos relevés bancaires via l'Intelligence Comptable pour pouvoir
-          rapprocher vos transactions avec vos factures.
-        </p>
-        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
-          <Link to="/app/accounting/intelligence">
-            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
-          </Link>
-        </Button>
-      </motion.div>
-    );
-  }
+  const reconcItems = isDemo ? reconciliationItems : [];
+  const txs         = isDemo ? bankTransactions    : [];
+  const matched     = reconcItems.filter(r => r.status === "matched");
+  const unmatched   = reconcItems.filter(r => r.status === "unmatched");
+  const taux        = reconcItems.length > 0 ? Math.round((matched.length / reconcItems.length) * 100) : 0;
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -51,10 +31,25 @@ export default function ReconciliationPage() {
           <p className="text-sm text-muted-foreground">Associez vos transactions bancaires à vos factures et dépenses</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm"><Bot className="h-3.5 w-3.5 mr-1.5" />Rapprochement IA</Button>
-          <Button variant="outline" size="sm"><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Synchroniser</Button>
+          {isDemo && (
+            <>
+              <Button variant="outline" size="sm"><Bot className="h-3.5 w-3.5 mr-1.5" />Rapprochement IA</Button>
+              <Button variant="outline" size="sm"><RefreshCw className="h-3.5 w-3.5 mr-1.5" />Synchroniser</Button>
+            </>
+          )}
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <Link to="/app/accounting/intelligence">
+              <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+            </Link>
+          </Button>
         </div>
       </div>
+
+      {!isDemo && (
+        <p className="text-xs text-muted-foreground">
+          Aucune transaction importée. Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <Card>
@@ -67,7 +62,7 @@ export default function ReconciliationPage() {
             <p className="text-2xl font-display font-bold text-success">{matched.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-warning/30">
+        <Card className={unmatched.length > 0 ? "border-warning/30" : ""}>
           <CardContent className="p-3.5 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <AlertCircle className="h-4 w-4 text-warning" />
@@ -84,9 +79,7 @@ export default function ReconciliationPage() {
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Taux</span>
               <InfoTooltip title="Taux de rapprochement" description="Pourcentage de transactions rapprochées." formula="(Rapprochées ÷ Total) × 100" benefit="100% = comptabilité parfaitement alignée." />
             </div>
-            <p className="text-2xl font-display font-bold text-primary">
-              {Math.round((matched.length / reconciliationItems.length) * 100)}%
-            </p>
+            <p className="text-2xl font-display font-bold text-primary">{taux}%</p>
           </CardContent>
         </Card>
       </div>
@@ -101,7 +94,7 @@ export default function ReconciliationPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {unmatched.map(item => {
-              const tx = bankTransactions.find(t => t.id === item.transactionId);
+              const tx = txs.find(t => t.id === item.transactionId);
               if (!tx) return null;
               return (
                 <div key={item.transactionId} className="flex items-center gap-4 p-3 rounded-lg border border-warning/20 bg-warning/5">
@@ -139,7 +132,7 @@ export default function ReconciliationPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {matched.map(item => {
-            const tx = bankTransactions.find(t => t.id === item.transactionId);
+            const tx = txs.find(t => t.id === item.transactionId);
             if (!tx) return null;
             return (
               <div key={item.transactionId} className="flex items-center gap-4 p-3 rounded-lg border border-border/50 hover:bg-muted/20 transition-colors">
@@ -163,6 +156,12 @@ export default function ReconciliationPage() {
               </div>
             );
           })}
+          {matched.length === 0 && (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              <GitBranch className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p>Aucune transaction rapprochée</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>

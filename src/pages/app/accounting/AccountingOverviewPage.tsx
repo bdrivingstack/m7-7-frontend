@@ -24,7 +24,9 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", c
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 const item = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
 
-const EMPTY_STATS = { totalRevenue: 0, totalExpenses: 0, netResult: 0, vatDue: 0, uncategorized: 0, unreconciled: 0 };
+const EMPTY_STATS  = { totalRevenue: 0, totalExpenses: 0, netResult: 0, vatDue: 0, uncategorized: 0, unreconciled: 0 };
+const EMPTY_VAT    = { collected: 0, deductible: 0, due: 0, deadline: new Date().toISOString() };
+const EMPTY_SOCIAL = { period: "—", estimated: 0, paid: 0, remaining: 0, nextDeadline: new Date().toISOString() };
 
 export default function AccountingOverviewPage() {
   const demo   = useDemo();
@@ -36,32 +38,8 @@ export default function AccountingOverviewPage() {
   const revenueChartData = isDemo ? mockRevenueChartData : (apiReport?.revenueChart ?? []);
   const revenueCats    = isDemo ? mockCategories.filter(c => c.type === "revenue")  : [];
   const expenseCats    = isDemo ? mockCategories.filter(c => c.type === "expense")  : [];
-  const vatSummary     = isDemo ? mockVatSummary     : null;
-  const socialContributions = isDemo ? mockSocialContributions : [];
-
-  if (!isDemo && !apiReport) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Landmark className="h-8 w-8 text-primary" />
-        </div>
-        <div>
-          <p className="font-display font-semibold text-lg">Comptabilité vide</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Créez votre première facture ou importez un relevé bancaire pour alimenter votre comptabilité.
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap justify-center">
-          <Link to="/app/sales/invoices/new">
-            <Button variant="outline" size="sm"><FileText className="h-3.5 w-3.5 mr-1.5" />Nouvelle facture</Button>
-          </Link>
-          <Link to="/app/accounting/intelligence">
-            <Button className="gradient-primary text-primary-foreground" size="sm"><GitBranch className="h-3.5 w-3.5 mr-1.5" />Import IA</Button>
-          </Link>
-        </div>
-      </motion.div>
-    );
-  }
+  const vatSummary          = isDemo ? mockVatSummary          : EMPTY_VAT;
+  const socialContributions = isDemo ? mockSocialContributions  : EMPTY_SOCIAL;
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" variants={container} initial="hidden" animate="show">
@@ -73,8 +51,19 @@ export default function AccountingOverviewPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Calendar className="h-3.5 w-3.5 mr-1.5" />Mars 2024</Button>
           <Button variant="outline" size="sm"><FileText className="h-3.5 w-3.5 mr-1.5" />Exporter</Button>
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <Link to="/app/accounting/intelligence">
+              <GitBranch className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+            </Link>
+          </Button>
         </div>
       </motion.div>
+
+      {!isDemo && (
+        <motion.p variants={item} className="text-xs text-muted-foreground">
+          Aucune transaction importée. Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+        </motion.p>
+      )}
 
       {/* KPI row */}
       <motion.div variants={item} className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">

@@ -14,28 +14,8 @@ export default function BanksPage() {
   const demo   = useDemo();
   const isDemo = !!demo?.isDemo;
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <Landmark className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Comptes bancaires</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucun compte bancaire connecté.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Importez vos relevés bancaires CSV depuis la section Intelligence Comptable
-          pour catégoriser automatiquement vos transactions.
-        </p>
-        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
-          <Link to="/app/accounting/intelligence">
-            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
-          </Link>
-        </Button>
-      </motion.div>
-    );
-  }
+  const accounts = isDemo ? bankAccounts : [];
+  const totalBalance = accounts.reduce((s, a) => s + a.balance, 0);
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -44,10 +24,25 @@ export default function BanksPage() {
           <h1 className="text-fluid-2xl font-display font-bold">Comptes bancaires</h1>
           <p className="text-sm text-muted-foreground">Gérez vos connexions bancaires et suivez vos soldes</p>
         </div>
-        <Button size="sm" className="gradient-primary text-primary-foreground">
-          <Plus className="h-3.5 w-3.5 mr-1.5" />Connecter une banque
-        </Button>
+        <div className="flex gap-2">
+          {isDemo && (
+            <Button size="sm" className="gradient-primary text-primary-foreground">
+              <Plus className="h-3.5 w-3.5 mr-1.5" />Connecter une banque
+            </Button>
+          )}
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <Link to="/app/accounting/intelligence">
+              <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {!isDemo && (
+        <p className="text-xs text-muted-foreground">
+          Aucune transaction importée. Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+        </p>
+      )}
 
       <Card className="border-primary/20">
         <CardContent className="p-5">
@@ -58,9 +53,9 @@ export default function BanksPage() {
                 <InfoTooltip title="Solde total consolidé" description="Somme des soldes de tous vos comptes bancaires connectés." benefit="Vue instantanée de votre trésorerie disponible, tous comptes confondus." />
               </p>
               <p className="text-fluid-3xl font-display font-bold">
-                {fmt(bankAccounts.reduce((s, a) => s + a.balance, 0))}
+                {fmt(totalBalance)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">{bankAccounts.length} comptes connectés</p>
+              <p className="text-xs text-muted-foreground mt-1">{accounts.length} comptes connectés</p>
             </div>
             <div className="h-14 w-14 rounded-2xl gradient-primary flex items-center justify-center">
               <Landmark className="h-7 w-7 text-primary-foreground" />
@@ -70,7 +65,7 @@ export default function BanksPage() {
       </Card>
 
       <div className="grid gap-3">
-        {bankAccounts.map(account => (
+        {accounts.map(account => (
           <Card key={account.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -112,6 +107,14 @@ export default function BanksPage() {
             </CardContent>
           </Card>
         ))}
+        {accounts.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="py-10 text-center text-muted-foreground text-sm">
+              <Landmark className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p>Aucun compte bancaire connecté</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card className="bg-muted/30">

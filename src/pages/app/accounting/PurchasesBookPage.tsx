@@ -18,30 +18,9 @@ export default function PurchasesBookPage() {
   const isDemo = !!demo?.isDemo;
   const [search, setSearch] = useState("");
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <ArrowDownRight className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Livre des achats</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune dépense enregistrée.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Importez vos relevés bancaires via l'Intelligence Comptable pour catégoriser
-          automatiquement vos achats et dépenses professionnelles.
-        </p>
-        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
-          <Link to="/app/accounting/intelligence">
-            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
-          </Link>
-        </Button>
-      </motion.div>
-    );
-  }
+  const entries = isDemo ? purchaseBookEntries : [];
 
-  const filtered = purchaseBookEntries.filter(e =>
+  const filtered = entries.filter(e =>
     !search ||
     e.description?.toLowerCase().includes(search.toLowerCase()) ||
     e.supplier?.toLowerCase().includes(search.toLowerCase())
@@ -78,8 +57,19 @@ export default function PurchasesBookPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExportCSV}><Download className="h-3.5 w-3.5 mr-1.5" />Exporter CSV</Button>
           <Button variant="outline" size="sm" onClick={() => toast({ title: "PDF", description: "Export PDF disponible prochainement." })}><FileText className="h-3.5 w-3.5 mr-1.5" />Exporter PDF</Button>
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <Link to="/app/accounting/intelligence">
+              <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+            </Link>
+          </Button>
         </div>
       </div>
+
+      {!isDemo && (
+        <p className="text-xs text-muted-foreground">
+          Aucune transaction importée. Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+        </p>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         <Card>
@@ -147,6 +137,17 @@ export default function PurchasesBookPage() {
                   </tr>
                 ))}
               </tbody>
+              {filtered.length === 0 && (
+                <tfoot>
+                  <tr><td colSpan={7} className="py-12 text-center text-muted-foreground text-sm">
+                    <ArrowDownRight className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="font-medium">{isDemo ? "Aucune dépense trouvée" : "Aucune dépense enregistrée"}</p>
+                    {!isDemo && (
+                      <p className="text-xs mt-1">Importez vos relevés bancaires CSV via l'Intelligence Comptable.</p>
+                    )}
+                  </td></tr>
+                </tfoot>
+              )}
               {filtered.length > 0 && (
                 <tfoot>
                   <tr className="bg-muted/30 font-medium">

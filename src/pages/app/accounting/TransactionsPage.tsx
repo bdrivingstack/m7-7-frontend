@@ -23,30 +23,9 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<TxFilter>("all");
   const [search, setSearch] = useState("");
 
-  if (!isDemo) {
-    return (
-      <motion.div className="p-6 flex flex-col items-center justify-center min-h-[60vh] text-center" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <ArrowUpRight className="h-10 w-10 text-primary/50" />
-        </div>
-        <h2 className="text-xl font-display font-bold mb-2">Transactions bancaires</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-2">
-          Aucune transaction importée.
-        </p>
-        <p className="text-xs text-muted-foreground max-w-sm mb-6">
-          Importez vos relevés bancaires CSV via l'Intelligence Comptable.
-          Vos transactions seront catégorisées automatiquement par IA.
-        </p>
-        <Button asChild size="sm" className="gradient-primary text-primary-foreground">
-          <Link to="/app/accounting/intelligence">
-            <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
-          </Link>
-        </Button>
-      </motion.div>
-    );
-  }
+  const txData = isDemo ? bankTransactions : [];
 
-  const filtered = bankTransactions.filter(tx => {
+  const filtered = txData.filter(tx => {
     if (filter === "uncategorized") return !tx.categorized;
     if (filter === "credit") return tx.type === "credit";
     if (filter === "debit") return tx.type === "debit";
@@ -57,9 +36,9 @@ export default function TransactionsPage() {
     return true;
   });
 
-  const uncategorizedCount = bankTransactions.filter(t => !t.categorized).length;
-  const totalCredit = bankTransactions.filter(t => t.type === "credit").reduce((s, t) => s + t.amount, 0);
-  const totalDebit  = bankTransactions.filter(t => t.type === "debit").reduce((s, t) => s + Math.abs(t.amount), 0);
+  const uncategorizedCount = txData.filter(t => !t.categorized).length;
+  const totalCredit = txData.filter(t => t.type === "credit").reduce((s, t) => s + t.amount, 0);
+  const totalDebit  = txData.filter(t => t.type === "debit").reduce((s, t) => s + Math.abs(t.amount), 0);
 
   return (
     <motion.div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-full overflow-x-hidden" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -71,8 +50,19 @@ export default function TransactionsPage() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm"><Bot className="h-3.5 w-3.5 mr-1.5" />Catégoriser tout (IA)</Button>
           <Button variant="outline" size="sm"><Download className="h-3.5 w-3.5 mr-1.5" />Exporter</Button>
+          <Button asChild size="sm" className="gradient-primary text-primary-foreground">
+            <Link to="/app/accounting/intelligence">
+              <Upload className="h-3.5 w-3.5 mr-1.5" />Importer un relevé bancaire
+            </Link>
+          </Button>
         </div>
       </div>
+
+      {!isDemo && (
+        <p className="text-xs text-muted-foreground">
+          Aucune transaction importée. Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
@@ -179,7 +169,12 @@ export default function TransactionsPage() {
             {filtered.length === 0 && (
               <div className="py-12 text-center text-muted-foreground text-sm">
                 <ArrowUpRight className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p>Aucune transaction trouvée</p>
+                <p className="font-medium">Aucune transaction trouvée</p>
+                {!isDemo && (
+                  <p className="text-xs mt-1 max-w-xs mx-auto">
+                    Importez vos relevés bancaires CSV via l'Intelligence Comptable. Vos transactions seront catégorisées automatiquement par IA.
+                  </p>
+                )}
               </div>
             )}
           </div>
