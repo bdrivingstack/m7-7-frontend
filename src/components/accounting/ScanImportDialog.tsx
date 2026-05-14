@@ -183,89 +183,99 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     const overlay = overlayRef.current;
     const cv      = window.cv;
     if (!video || !overlay || !cv?.Mat) return;
-
-    // Skip until video actually has frames
     if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
 
-    // Use video element dimensions (reliable even before canvas is laid out)
     const rect = video.getBoundingClientRect();
     const dw = Math.round(rect.width)  || video.clientWidth  || 640;
     const dh = Math.round(rect.height) || video.clientHeight || 480;
     if (!dw || !dh) return;
     if (overlay.width !== dw || overlay.height !== dh) { overlay.width = dw; overlay.height = dh; }
 
-    // Processing canvas (downscaled for performance)
     if (!procCanvasRef.current) procCanvasRef.current = document.createElement("canvas");
     const proc = procCanvasRef.current;
     const procW = Math.min(video.videoWidth, 640);
     const procH = Math.round(video.videoHeight * procW / video.videoWidth);
+    if (!procH) return;
     proc.width = procW; proc.height = procH;
-
-    try {
-      proc.getContext("2d")!.drawImage(video, 0, 0, procW, procH);
-    } catch { return; } // canvas tainted on some platforms
+    try { proc.getContext("2d")!.drawImage(video, 0, 0, procW, procH); } catch { return; }
 
     let bestQuad: Quad | null = null;
-    let src: any, gray: any, blurred: any, edges: any, dilated: any, kernel: any, contours: any, hierarchy: any;
 
+    // Find the best 4-corner quad from a contour vector
+    const findQuad = (cvec: any): Quad | null => {
+      let result: Quad | null = null;
+      let largestArea = procW * procH * 0.04;
+      for (let i = 0; i < cvec.size(); i++) {
+        const cnt = cvec.get(i);
+        const area = cv.contourArea(cnt);
+        if (area <= largestArea) { cnt.delete(); continue; }
+        const hull = new cv.Mat();
+        try {
+          cv.convexHull(cnt, hull, false, true);
+          const peri = cv.arcLength(hull, true);
+          for (const eps of [0.02, 0.03, 0.05, 0.08, 0.12]) {
+            const approx = new cv.Mat();
+            try {
+              cv.approxPolyDP(hull, approx, eps * peri, true);
+              if (approx.rows === 4) {
+                largestArea = area;
+                const sx = dw / procW, sy = dh / procH;
+                result = [
+                  [approx.data32S[0] * sx, approx.data32S[1] * sy],
+                  [approx.data32S[2] * sx, approx.data32S[3] * sy],
+                  [approx.data32S[4] * sx, approx.data32S[5] * sy],
+                  [approx.data32S[6] * sx, approx.data32S[7] * sy],
+                ] as Quad;
+                break;
+              }
+            } finally { try { approx.delete(); } catch {} }
+          }
+        } finally { try { hull.delete(); } catch {} }
+        cnt.delete();
+      }
+      return result;
+    };
+
+    let src: any, gray: any, blurred: any,
+        thresh: any, closed: any, bigK: any,
+        edges: any, dilated: any, smK: any,
+        cA: any, hA: any, cB: any, hB: any;
     try {
-      src       = cv.imread(proc);
-      gray      = new cv.Mat();
-      blurred   = new cv.Mat();
-      edges     = new cv.Mat();
-      dilated   = new cv.Mat();
-      kernel    = cv.Mat.ones(3, 3, cv.CV_8U);
-      contours  = new cv.MatVector();
-      hierarchy = new cv.Mat();
-
+      src     = cv.imread(proc);
+      gray    = new cv.Mat(); blurred = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-      cv.Canny(blurred, edges, 50, 150);            // More sensitive thresholds
-      cv.dilate(edges, dilated, kernel);
-      // RETR_EXTERNAL: only outer contours, no inner noise
-      cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      cv.GaussianBlur(gray, blurred, new cv.Size(9, 9), 0);
 
-      let largestArea = 0;
-      const minArea = procW * procH * 0.04; // 4% — was 8%
+      // Strategy A: Otsu threshold — finds bright paper body (white on dark)
+      thresh = new cv.Mat(); closed = new cv.Mat();
+      bigK   = cv.Mat.ones(15, 15, cv.CV_8U);
+      cv.threshold(blurred, thresh, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+      cv.morphologyEx(thresh, closed, cv.MORPH_CLOSE, bigK);
+      cA = new cv.MatVector(); hA = new cv.Mat();
+      cv.findContours(closed, cA, hA, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-      for (let i = 0; i < contours.size(); i++) {
-        const c = contours.get(i);
-        const area = cv.contourArea(c);
-        if (area < minArea) { c.delete(); continue; }
+      // Strategy B: Canny edges — works on any surface/color
+      edges   = new cv.Mat(); dilated = new cv.Mat();
+      smK     = cv.Mat.ones(5, 5, cv.CV_8U);
+      cv.Canny(blurred, edges, 20, 60);
+      cv.dilate(edges, dilated, smK);
+      cB = new cv.MatVector(); hB = new cv.Mat();
+      cv.findContours(dilated, cB, hB, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-        if (area > largestArea) {
-          // convexHull + progressive epsilon → robust 4-corner detection
-          const hull = new cv.Mat();
-          try {
-            cv.convexHull(c, hull, false, true);
-            const peri = cv.arcLength(hull, true);
-            // Try increasingly lenient epsilons until we get a quad
-            for (const eps of [0.02, 0.03, 0.05, 0.08, 0.10]) {
-              const approx = new cv.Mat();
-              try {
-                cv.approxPolyDP(hull, approx, eps * peri, true);
-                if (approx.rows === 4) {
-                  largestArea = area;
-                  const sx = dw / procW, sy = dh / procH;
-                  bestQuad = [
-                    [approx.data32S[0] * sx, approx.data32S[1] * sy],
-                    [approx.data32S[2] * sx, approx.data32S[3] * sy],
-                    [approx.data32S[4] * sx, approx.data32S[5] * sy],
-                    [approx.data32S[6] * sx, approx.data32S[7] * sy],
-                  ] as Quad;
-                  approx.delete();
-                  break;
-                }
-              } finally { try { approx.delete(); } catch {} }
-            }
-          } finally { try { hull.delete(); } catch {} }
-        }
-        c.delete();
+      const qA = findQuad(cA);
+      const qB = findQuad(cB);
+      // Keep the quad with the larger bounding box
+      if (qA && qB) {
+        const sizeA = Math.hypot(qA[2][0] - qA[0][0], qA[2][1] - qA[0][1]);
+        const sizeB = Math.hypot(qB[2][0] - qB[0][0], qB[2][1] - qB[0][1]);
+        bestQuad = sizeA >= sizeB ? qA : qB;
+      } else {
+        bestQuad = qA ?? qB;
       }
     } catch {
-      // OpenCV runtime error — skip frame silently
+      // silent OpenCV error
     } finally {
-      [src, gray, blurred, edges, dilated, kernel, contours, hierarchy]
+      [src, gray, blurred, thresh, closed, bigK, edges, dilated, smK, cA, hA, cB, hB]
         .forEach((m) => { try { m?.delete(); } catch {} });
     }
 
@@ -292,36 +302,57 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
 
   // ── Draw detection overlay + gauge ────────────────────────────────────────
   const drawOverlay = (canvas: HTMLCanvasElement, quad: Quad | null, progress: number) => {
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || !canvas.width || !canvas.height) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Always draw corner brackets — visible guide even before detection
+    const w = canvas.width, h = canvas.height;
+    const arm   = Math.min(w, h) * 0.07;
+    const mg    = Math.min(w, h) * 0.09;
+    const bracketColor = quad ? "rgba(56,189,248,0.9)" : "rgba(255,255,255,0.45)";
+    ctx.strokeStyle = bracketColor;
+    ctx.lineWidth = 3.5;
+    ctx.setLineDash([]);
+    const brackets: [[number,number],[number,number],[number,number]][] = [
+      [[mg+arm,mg],[mg,mg],[mg,mg+arm]],
+      [[w-mg-arm,mg],[w-mg,mg],[w-mg,mg+arm]],
+      [[mg+arm,h-mg],[mg,h-mg],[mg,h-mg-arm]],
+      [[w-mg-arm,h-mg],[w-mg,h-mg],[w-mg,h-mg-arm]],
+    ];
+    brackets.forEach(([[x1,y1],[x2,y2],[x3,y3]]) => {
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.stroke();
+    });
+
     if (!quad) return;
 
-    // Build path
+    // Detected quad fill
     ctx.beginPath();
     ctx.moveTo(quad[0][0], quad[0][1]);
     for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
     ctx.closePath();
-
-    // Fill
-    ctx.fillStyle = "rgba(56,189,248,0.13)";
+    ctx.fillStyle = "rgba(56,189,248,0.18)";
     ctx.fill();
 
-    // Dim border
-    ctx.strokeStyle = "rgba(56,189,248,0.45)";
-    ctx.lineWidth = 2;
+    // Quad border
+    ctx.strokeStyle = "rgba(56,189,248,0.65)";
+    ctx.lineWidth = 2.5;
     ctx.setLineDash([]);
     ctx.stroke();
 
-    // Gauge — animated stroke travelling around perimeter
+    // Gauge — animated stroke around perimeter
     if (progress > 0) {
       const perim = quadPerimeter(quad);
       const dashLen = (progress / 100) * perim;
+      ctx.beginPath();
+      ctx.moveTo(quad[0][0], quad[0][1]);
+      for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
+      ctx.closePath();
       ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth = 4;
-      ctx.shadowColor = "rgba(56,189,248,0.7)";
-      ctx.shadowBlur = 6;
+      ctx.lineWidth = 5;
+      ctx.shadowColor = "rgba(56,189,248,0.9)";
+      ctx.shadowBlur = 12;
       ctx.setLineDash([dashLen, perim + 1]);
-      ctx.lineDashOffset = 0;
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.shadowBlur = 0;
@@ -330,21 +361,24 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     // Corner dots
     quad.forEach(([x, y]) => {
       ctx.beginPath();
-      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
       ctx.fillStyle = "#38bdf8";
-      ctx.shadowColor = "rgba(56,189,248,0.8)";
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = "#38bdf8";
+      ctx.shadowBlur = 14;
       ctx.fill();
       ctx.shadowBlur = 0;
     });
 
-    // Progress label near top-left corner
+    // Progress % label with text outline for readability
     if (progress > 5) {
       const [lx, ly] = quad[0];
       const pct = Math.round(progress);
-      ctx.font = "bold 13px system-ui";
+      ctx.font = "bold 14px system-ui";
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.strokeText(`${pct}%`, lx + 8, ly - 10);
       ctx.fillStyle = "#38bdf8";
-      ctx.fillText(`${pct}%`, lx + 8, ly - 8);
+      ctx.fillText(`${pct}%`, lx + 8, ly - 10);
     }
   };
 
@@ -474,19 +508,12 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
           }} />
 
           {/* OpenCV detection overlay */}
-          <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+          <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} />
 
           {/* Flash */}
           <div ref={flashRef} className="absolute inset-0 bg-white pointer-events-none transition-opacity duration-[200ms]" style={{ opacity: 0 }} />
 
-          {/* Fixed violet frame hint (only when no detection) */}
-          {!detected && (
-            <div className="absolute pointer-events-none" style={{
-              inset: "8%",
-              border: "2px dashed rgba(124,58,237,0.5)",
-              borderRadius: "10px",
-            }} />
-          )}
+          {/* Frame guide drawn directly on canvas — no DOM fallback needed */}
 
           {/* Status bar */}
           <div className="absolute bottom-3 left-3 right-3 rounded-full bg-black/70 backdrop-blur-sm px-3 py-1.5 text-xs text-white text-center z-10">
