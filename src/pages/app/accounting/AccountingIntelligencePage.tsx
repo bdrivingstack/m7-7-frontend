@@ -256,8 +256,8 @@ export default function AccountingIntelligencePage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="sm:hidden flex-shrink-0"
-                  title="Prendre en photo (mobile)"
+                  className="flex-shrink-0 lg:hidden"
+                  title="Prendre en photo"
                   onClick={() => cameraInputRef.current?.click()}
                 >
                   <Camera className="h-4 w-4" />
