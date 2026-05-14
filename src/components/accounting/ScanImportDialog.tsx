@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera, RotateCcw, UploadCloud, X, CheckCircle2, AlertTriangle,
   FileText, ZoomIn, ChevronLeft, ChevronRight, ScanLine, Loader2,
@@ -38,6 +38,15 @@ type DetectionCandidate = {
   area: number;
   score: number;
   source: string;
+  confidence: number;
+};
+
+type FrameQuality = {
+  blur: number;
+  brightness: number;
+  contrast: number;
+  ok: boolean;
+  reason: string;
 };
 
 export type ScanImportDialogProps = {
@@ -47,29 +56,42 @@ export type ScanImportDialogProps = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SCAN_DELAY_MS     = 5000;
-const PROCESS_EVERY_MS  = 160;
+const SCAN_DELAY_MS = 5000;
+const PROCESS_EVERY_MS = 160;
 const MIN_STABLE_FRAMES = 4;
-const JPEG_QUALITY      = 0.94;
-const MAX_PROCESS_WIDTH = 760;
+const REQUIRED_STABLE_MS = 5000;
+const JPEG_QUALITY = 0.94;
+const MAX_PROCESS_WIDTH = 840;
+const MIN_BLUR_LAPLACIAN = 42;
+const MIN_BRIGHTNESS = 45;
+const MAX_BRIGHTNESS = 225;
+const MAX_QUAD_MOVEMENT_RATIO = 0.035;
+const MAX_QUAD_AREA_CHANGE = 0.08;
+const MIN_CANDIDATE_CONFIDENCE = 0.24;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function loadOpenCV(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.cv?.Mat) { resolve(); return; }
+
     const existing = document.getElementById("opencv-js");
     if (existing) {
-      const poll = setInterval(() => { if (window.cv?.Mat) { clearInterval(poll); resolve(); } }, 150);
+      const poll = setInterval(() => {
+        if (window.cv?.Mat) { clearInterval(poll); resolve(); }
+      }, 150);
       setTimeout(() => { clearInterval(poll); reject(new Error("OpenCV timeout")); }, 30000);
       return;
     }
+
     const s = document.createElement("script");
     s.id = "opencv-js";
     s.src = "https://docs.opencv.org/4.8.0/opencv.js";
     s.async = true;
     s.onload = () => {
-      const poll = setInterval(() => { if (window.cv?.Mat) { clearInterval(poll); resolve(); } }, 150);
+      const poll = setInterval(() => {
+        if (window.cv?.Mat) { clearInterval(poll); resolve(); }
+      }, 150);
       setTimeout(() => { clearInterval(poll); reject(new Error("OpenCV timeout")); }, 30000);
     };
     s.onerror = () => reject(new Error("Impossible de charger OpenCV"));
@@ -77,7 +99,7 @@ function loadOpenCV(): Promise<void> {
   });
 }
 
-function dist(a: [number, number], b: [number, number]) {
+function distance(a: [number, number], b: [number, number]) {
   return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
 
@@ -92,33 +114,33 @@ function polygonArea(q: Quad): number {
 }
 
 function quadPerimeter(q: Quad): number {
-  return q.reduce((sum, pt, i) => sum + dist(pt, q[(i + 1) % 4]), 0);
+  return q.reduce((sum, pt, i) => sum + distance(pt, q[(i + 1) % 4]), 0);
 }
 
+// Sort quad corners → [TL, TR, BR, BL]
 function sortCorners(pts: [number, number][]): Quad {
   const points = [...pts];
   const center: [number, number] = [
     points.reduce((s, p) => s + p[0], 0) / points.length,
     points.reduce((s, p) => s + p[1], 0) / points.length,
   ];
-  const sorted = [...points].sort(
-    (a, b) =>
-      Math.atan2(a[1] - center[1], a[0] - center[0]) -
-      Math.atan2(b[1] - center[1], b[0] - center[0])
-  ) as [number, number][];
-  const tlIdx = sorted.reduce(
-    (best, p, i) => (p[0] + p[1] < sorted[best][0] + sorted[best][1] ? i : best),
-    0
-  );
-  const rotated = [...sorted.slice(tlIdx), ...sorted.slice(0, tlIdx)] as Quad;
-  if (rotated[1][1] > rotated[3][1]) return [rotated[0], rotated[3], rotated[2], rotated[1]] as Quad;
+
+  const sorted = points.sort((a, b) => Math.atan2(a[1] - center[1], a[0] - center[0]) - Math.atan2(b[1] - center[1], b[0] - center[0]));
+  const tlIndex = sorted.reduce((best, p, i) => (p[0] + p[1] < sorted[best][0] + sorted[best][1] ? i : best), 0);
+  const rotated = [...sorted.slice(tlIndex), ...sorted.slice(0, tlIndex)] as Quad;
+
+  // Ensure clockwise TL,TR,BR,BL. If second point is below-left instead of top-right, reverse order.
+  if (rotated[1][1] > rotated[3][1]) {
+    return [rotated[0], rotated[3], rotated[2], rotated[1]] as Quad;
+  }
   return rotated;
 }
 
 function normalizeQuadForPortrait(q: Quad): Quad {
   const s = sortCorners([...q]);
-  const top   = dist(s[0], s[1]);
-  const right = dist(s[1], s[2]);
+  const top = distance(s[0], s[1]);
+  const right = distance(s[1], s[2]);
+  // If detected as landscape, rotate to portrait output source order.
   if (top > right) return [s[3], s[0], s[1], s[2]] as Quad;
   return s;
 }
@@ -126,59 +148,125 @@ function normalizeQuadForPortrait(q: Quad): Quad {
 function quadDeltaRatio(a: Quad, b: Quad, diag: number): number {
   const sa = sortCorners([...a]);
   const sb = sortCorners([...b]);
-  return Math.max(...sa.map((p, i) => dist(p, sb[i]) / diag));
+  const deltas = sa.map((p, i) => distance(p, sb[i]) / diag);
+  return Math.max(...deltas);
 }
 
 function smoothQuad(prev: Quad, next: Quad, alpha = 0.25): Quad {
   const p = sortCorners([...prev]);
   const n = sortCorners([...next]);
-  return n.map(([x, y], i) => [
-    p[i][0] + alpha * (x - p[i][0]),
-    p[i][1] + alpha * (y - p[i][1]),
-  ]) as Quad;
+  return n.map(([x, y], i) => [p[i][0] + alpha * (x - p[i][0]), p[i][1] + alpha * (y - p[i][1])] as [number, number]) as Quad;
 }
 
 function clampQuad(q: Quad, w: number, h: number): Quad {
-  return q.map(([x, y]) => [
-    Math.max(0, Math.min(w, x)),
-    Math.max(0, Math.min(h, y)),
-  ]) as Quad;
+  return q.map(([x, y]) => [Math.max(0, Math.min(w, x)), Math.max(0, Math.min(h, y))] as [number, number]) as Quad;
 }
 
-function getQuadShapeScore(q: Quad, fw: number, fh: number): number {
-  const area      = polygonArea(q);
-  const frameArea = fw * fh;
+function getQuadShapeScore(q: Quad, frameW: number, frameH: number) {
+  const area = polygonArea(q);
+  const frameArea = frameW * frameH;
   const areaRatio = area / frameArea;
-  const top    = dist(q[0], q[1]);
-  const right  = dist(q[1], q[2]);
-  const bottom = dist(q[2], q[3]);
-  const left   = dist(q[3], q[0]);
-  const wAvg   = (top + bottom) / 2;
-  const hAvg   = (left + right) / 2;
-  const aspect = Math.max(wAvg, hAvg) / Math.max(1, Math.min(wAvg, hAvg));
-  const balance = 1 - Math.min(
-    0.7,
-    (Math.abs(top - bottom) / Math.max(top, bottom, 1) +
-     Math.abs(left - right) / Math.max(left, right, 1)) / 2
-  );
-  const aspectOk  = aspect >= 1.2 && aspect <= 6.0 ? 1 : 0.3;
-  const areaOk    = areaRatio >= 0.03 && areaRatio <= 0.88 ? 1 : 0.15;
-  return area * balance * aspectOk * areaOk;
+  const top = distance(q[0], q[1]);
+  const right = distance(q[1], q[2]);
+  const bottom = distance(q[2], q[3]);
+  const left = distance(q[3], q[0]);
+  const widthAvg = (top + bottom) / 2;
+  const heightAvg = (left + right) / 2;
+  const aspect = Math.max(widthAvg, heightAvg) / Math.max(1, Math.min(widthAvg, heightAvg));
+
+  const sideBalance = 1 - Math.min(0.78, (
+    Math.abs(top - bottom) / Math.max(top, bottom, 1) +
+    Math.abs(left - right) / Math.max(left, right, 1)
+  ) / 2);
+
+  const minEdge = Math.min(top, right, bottom, left);
+  const edgeScore = Math.min(1, minEdge / Math.max(1, Math.min(frameW, frameH) * 0.14));
+  const aspectScore = aspect >= 1.18 && aspect <= 7.2 ? 1 : 0.18;
+  const areaScore = areaRatio >= 0.025 && areaRatio <= 0.78 ? 1 : 0.08;
+  const margin = Math.min(frameW, frameH) * 0.015;
+  const insideScore = q.every(([x, y]) => x > margin && y > margin && x < frameW - margin && y < frameH - margin) ? 1 : 0.55;
+
+  const score = area * sideBalance * aspectScore * areaScore * edgeScore * insideScore;
+  const confidence = Math.max(0, Math.min(1, sideBalance * aspectScore * areaScore * edgeScore * insideScore));
+  return { score, confidence };
+}
+
+function angleOfLine(l: [number, number, number, number]) {
+  return Math.atan2(l[3] - l[1], l[2] - l[0]);
+}
+
+function lineIntersection(a: [number, number, number, number], b: [number, number, number, number]): [number, number] | null {
+  const [x1, y1, x2, y2] = a;
+  const [x3, y3, x4, y4] = b;
+  const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(den) < 1e-6) return null;
+  const px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den;
+  const py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den;
+  return [px, py];
+}
+
+function buildHoughQuad(linesMat: any, frameW: number, frameH: number): Quad | null {
+  const lines: [number, number, number, number][] = [];
+  for (let i = 0; i < linesMat.rows; i++) {
+    const d = linesMat.data32S.slice(i * 4, i * 4 + 4) as any;
+    const l: [number, number, number, number] = [d[0], d[1], d[2], d[3]];
+    if (distance([l[0], l[1]], [l[2], l[3]]) > Math.min(frameW, frameH) * 0.18) lines.push(l);
+  }
+  if (lines.length < 4) return null;
+
+  const vertical = lines.filter((l) => Math.abs(Math.cos(angleOfLine(l))) < 0.45).slice(0, 8);
+  const horizontal = lines.filter((l) => Math.abs(Math.sin(angleOfLine(l))) < 0.45).slice(0, 8);
+  if (vertical.length < 2 || horizontal.length < 2) return null;
+
+  const xMid = (l: [number, number, number, number]) => (l[0] + l[2]) / 2;
+  const yMid = (l: [number, number, number, number]) => (l[1] + l[3]) / 2;
+  const left = vertical.reduce((a, b) => xMid(a) < xMid(b) ? a : b);
+  const right = vertical.reduce((a, b) => xMid(a) > xMid(b) ? a : b);
+  const top = horizontal.reduce((a, b) => yMid(a) < yMid(b) ? a : b);
+  const bottom = horizontal.reduce((a, b) => yMid(a) > yMid(b) ? a : b);
+
+  const tl = lineIntersection(left, top);
+  const tr = lineIntersection(right, top);
+  const br = lineIntersection(right, bottom);
+  const bl = lineIntersection(left, bottom);
+  if (!tl || !tr || !br || !bl) return null;
+
+  const q = clampQuad(sortCorners([tl, tr, br, bl]), frameW, frameH);
+  const area = polygonArea(q);
+  if (area < frameW * frameH * 0.025 || area > frameW * frameH * 0.78) return null;
+  return q;
+}
+
+function estimateFrameQuality(gray: any, cv: any): FrameQuality {
+  const mean = new cv.Mat();
+  const std = new cv.Mat();
+  const lap = new cv.Mat();
+  const lapMean = new cv.Mat();
+  const lapStd = new cv.Mat();
+  try {
+    cv.meanStdDev(gray, mean, std);
+    cv.Laplacian(gray, lap, cv.CV_64F);
+    cv.meanStdDev(lap, lapMean, lapStd);
+    const brightness = mean.doubleAt(0, 0);
+    const contrast = std.doubleAt(0, 0);
+    const blur = Math.pow(lapStd.doubleAt(0, 0), 2);
+    const ok = blur >= MIN_BLUR_LAPLACIAN && brightness >= MIN_BRIGHTNESS && brightness <= MAX_BRIGHTNESS;
+    const reason = blur < MIN_BLUR_LAPLACIAN ? "Image floue — stabilisez" : brightness < MIN_BRIGHTNESS ? "Trop sombre" : brightness > MAX_BRIGHTNESS ? "Trop lumineux" : "";
+    return { blur, brightness, contrast, ok, reason };
+  } finally {
+    [mean, std, lap, lapMean, lapStd].forEach((m) => { try { m?.delete(); } catch {} });
+  }
 }
 
 async function blobFromCanvas(canvas: HTMLCanvasElement, quality = JPEG_QUALITY): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Impossible de générer l'image"))),
-      "image/jpeg",
-      quality
-    );
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Impossible de générer l'image")), "image/jpeg", quality);
   });
 }
 
 function imageDataVariance(gray: any, cv: any): number {
   const mean = new cv.Mat();
-  const std  = new cv.Mat();
+  const std = new cv.Mat();
   try {
     cv.meanStdDev(gray, mean, std);
     return std.doubleAt(0, 0);
@@ -190,39 +278,40 @@ function imageDataVariance(gray: any, cv: any): number {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps) {
-  const videoRef            = useRef<HTMLVideoElement>(null);
-  const streamRef           = useRef<MediaStream | null>(null);
-  const flashRef            = useRef<HTMLDivElement>(null);
-  const overlayRef          = useRef<HTMLCanvasElement>(null);
-  const procCanvasRef       = useRef<HTMLCanvasElement | null>(null);
-  const rafRef              = useRef<number>(0);
-  const loopActiveRef       = useRef(false);
-  const cvReadyRef          = useRef(false);
-  const quadRef             = useRef<Quad | null>(null);
-  const displayedQuadRef    = useRef<Quad | null>(null);
-  const gaugeStartRef       = useRef<number | null>(null);
-  const gaugeRef            = useRef(0);
-  const isCapturingRef      = useRef(false);
-  const pagesRef            = useRef<PagePreview[]>([]);
-  const prevQuadRef         = useRef<Quad | null>(null);
-  const stableFrameRef      = useRef(0);
-  const lastCaptureAtRef    = useRef(0);
-  const lastDetectionSource = useRef("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const flashRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
+  const procCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number>(0);
+  const loopActiveRef = useRef(false);
+  const cvReadyRef = useRef(false);
+  const quadRef = useRef<Quad | null>(null);
+  const displayedQuadRef = useRef<Quad | null>(null);
+  const gaugeStartRef = useRef<number | null>(null);
+  const gaugeRef = useRef(0);
+  const isCapturingRef = useRef(false);
+  const pagesRef = useRef<PagePreview[]>([]);
+  const prevQuadRef = useRef<Quad | null>(null);
+  const stableFrameRef = useRef(0);
+  const lastCaptureAtRef = useRef(0);
+  const lastDetectionSourceRef = useRef<string>("");
 
-  const [open, setOpen]                         = useState(false);
-  const [step, setStep]                         = useState<Step>("capture");
-  const [pages, setPages]                       = useState<PagePreview[]>([]);
-  const [currentPage, setCurrentPage]           = useState(0);
-  const [cameraReady, setCameraReady]           = useState(false);
-  const [cvStatus, setCvStatus]                 = useState<"idle"|"loading"|"ready"|"error">("idle");
-  const [saving, setSaving]                     = useState(false);
-  const [ocrData, setOcrData]                   = useState<OcrData | null>(null);
-  const [opType, setOpType]                     = useState<"EXPENSE"|"INCOME">("EXPENSE");
-  const [fullscreenUrl, setFullscreenUrl]       = useState<string | null>(null);
-  const [detected, setDetected]                 = useState(false);
-  const [capturePreviewUrl, setCapturePreviewUrl]       = useState<string | null>(null);
-  const [capturePreviewIndex, setCapturePreviewIndex]   = useState<number | null>(null);
-  const [gaugeDisplay, setGaugeDisplay]         = useState(0); // for status bar countdown
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<Step>("capture");
+  const [pages, setPages] = useState<PagePreview[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cvStatus, setCvStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [saving, setSaving] = useState(false);
+  const [ocrData, setOcrData] = useState<OcrData | null>(null);
+  const [opType, setOpType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
+  const [fullscreenUrl, setFullscreenUrl] = useState<string | null>(null);
+  const [detected, setDetected] = useState(false);
+  const [capturePreviewUrl, setCapturePreviewUrl] = useState<string | null>(null);
+  const [capturePreviewIndex, setCapturePreviewIndex] = useState<number | null>(null);
+
+  const remainingSeconds = Math.max(0, Math.ceil((SCAN_DELAY_MS - (gaugeRef.current / 100) * SCAN_DELAY_MS) / 1000));
 
   useEffect(() => { pagesRef.current = pages; }, [pages]);
 
@@ -238,12 +327,18 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     }
     if (!navigator.mediaDevices?.getUserMedia) return;
 
-    const tryCamera = (c: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(c);
-    tryCamera({
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    const startCamera = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(constraints);
+
+    startCamera({
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        aspectRatio: { ideal: 1.777777 },
+      },
       audio: false,
     })
-      .catch(() => tryCamera({ video: true, audio: false }))
+      .catch(() => startCamera({ video: true, audio: false }))
       .then((stream) => {
         streamRef.current = stream;
         const video = videoRef.current;
@@ -270,6 +365,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     if (!open || step !== "capture" || !cameraReady || !cvReadyRef.current || capturePreviewUrl) return;
     loopActiveRef.current = true;
     let lastMs = 0;
+
     const loop = (ts: number) => {
       if (!loopActiveRef.current) return;
       if (ts - lastMs >= PROCESS_EVERY_MS) { lastMs = ts; processFrame(); }
@@ -281,16 +377,15 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
   }, [open, step, cameraReady, cvStatus, capturePreviewUrl]);
 
   const resetDetection = useCallback(() => {
-    gaugeStartRef.current  = null;
-    gaugeRef.current       = 0;
-    quadRef.current        = null;
+    gaugeStartRef.current = null;
+    gaugeRef.current = 0;
+    quadRef.current = null;
     displayedQuadRef.current = null;
-    prevQuadRef.current    = null;
+    prevQuadRef.current = null;
     stableFrameRef.current = 0;
     setDetected(false);
-    setGaugeDisplay(0);
     const overlay = overlayRef.current;
-    if (overlay) drawOverlay(overlay, null, 0);
+    if (overlay) drawOverlay(overlay, null, 0, "");
   }, []);
 
   // ── Reset on close ─────────────────────────────────────────────────────────
@@ -304,7 +399,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     setCameraReady(false);
     setCapturePreviewUrl(null);
     setCapturePreviewIndex(null);
-    isCapturingRef.current   = false;
+    isCapturingRef.current = false;
     lastCaptureAtRef.current = 0;
     resetDetection();
   };
@@ -318,57 +413,128 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     setTimeout(() => { el.style.opacity = "0"; }, 180);
   };
 
-  // ── Find best quad across 4 detection strategies ──────────────────────────
+  // ── Detection helpers ──────────────────────────────────────────────────────
   const findBestQuad = useCallback((proc: HTMLCanvasElement): DetectionCandidate | null => {
     const cv = window.cv;
     if (!cv?.Mat) return null;
 
     const candidates: DetectionCandidate[] = [];
+    let src: any, gray: any, eq: any, blurred: any, edges: any, dilated: any;
+    let adaptive: any, morph: any, kernel3: any, kernel5: any, kernel11: any, houghLines: any;
+    let contours: any, hierarchy: any;
 
-    const collectFromMask = (mask: any, source: string) => {
-      let contours: any, hierarchy: any;
+    const contentScore = (q: Quad, source: string): number => {
+      // Éviter les motifs du canapé/tapis ou grands aplats.
+      // Vérifier que l'intérieur ressemble à un document : zone claire + détails internes.
+      if (!gray || !edges) return 0.6;
+      const mask = new cv.Mat.zeros(proc.height, proc.width, cv.CV_8U);
+      const ring = new cv.Mat();
+      const ringOnly = new cv.Mat();
+      const edgeInside = new cv.Mat();
+      const edgeOutside = new cv.Mat();
+      const pts = cv.matFromArray(4, 1, cv.CV_32SC2, q.flat().map(Math.round));
+      const ptsVec = new cv.MatVector();
       try {
-        contours  = new cv.MatVector();
-        hierarchy = new cv.Mat();
-        cv.findContours(mask, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        ptsVec.push_back(pts);
+        cv.fillPoly(mask, ptsVec, new cv.Scalar(255));
+
+        const k = cv.Mat.ones(21, 21, cv.CV_8U);
+        cv.dilate(mask, ring, k);
+        cv.subtract(ring, mask, ringOnly);
+        try { k.delete(); } catch {}
+
+        const meanIn = cv.mean(gray, mask)[0];
+        const meanOut = cv.mean(gray, ringOnly)[0];
+        const brightnessDelta = meanIn - meanOut;
+
+        cv.bitwise_and(edges, edges, edgeInside, mask);
+        cv.bitwise_and(edges, edges, edgeOutside, ringOnly);
+        const insideArea = Math.max(1, cv.countNonZero(mask));
+        const outsideArea = Math.max(1, cv.countNonZero(ringOnly));
+        const edgeDensityIn = cv.countNonZero(edgeInside) / insideArea;
+        const edgeDensityOut = cv.countNonZero(edgeOutside) / outsideArea;
+
+        const paperBrightnessScore = meanIn > 112 ? 1 : meanIn > 88 ? 0.72 : 0.35;
+        const contrastScore = brightnessDelta > 18 ? 1 : brightnessDelta > 6 ? 0.72 : 0.46;
+        const textDetailScore = edgeDensityIn > 0.018 ? 1 : edgeDensityIn > 0.009 ? 0.72 : 0.34;
+        const backgroundPenalty = edgeDensityOut > edgeDensityIn * 1.8 ? 0.55 : 1;
+
+        // Hough est pénalisé si le contenu n'est pas convaincant (risque motifs canapé/tapis).
+        const sourcePenalty = source.includes("hough") && textDetailScore < 0.72 ? 0.62 : 1;
+        return Math.max(0.05, Math.min(1.25, paperBrightnessScore * 0.34 + contrastScore * 0.26 + textDetailScore * 0.4)) * backgroundPenalty * sourcePenalty;
+      } finally {
+        [mask, ring, ringOnly, edgeInside, edgeOutside, pts, ptsVec].forEach((m) => { try { m?.delete(); } catch {} });
+      }
+    };
+
+    const centerScore = (q: Quad): number => {
+      const cx = q.reduce((s, p) => s + p[0], 0) / 4;
+      const cy = q.reduce((s, p) => s + p[1], 0) / 4;
+      const dx = Math.abs(cx - proc.width / 2) / (proc.width / 2);
+      const dy = Math.abs(cy - proc.height / 2) / (proc.height / 2);
+      const d = Math.sqrt(dx * dx + dy * dy);
+      return Math.max(0.42, 1 - d * 0.42);
+    };
+
+    const pushCandidate = (q: Quad, source: string, areaOverride?: number) => {
+      const area = areaOverride ?? polygonArea(q);
+      const { score, confidence } = getQuadShapeScore(q, proc.width, proc.height);
+      if (confidence < MIN_CANDIDATE_CONFIDENCE) return;
+
+      const content = contentScore(q, source);
+      if (content < 0.34) return;
+
+      const srcMultiplier = source.includes("edge") ? 1.12 : source.includes("adaptive") ? 1.04 : source.includes("hough") ? 0.96 : 0.82;
+      candidates.push({
+        quad: q,
+        area,
+        score: score * content * centerScore(q) * srcMultiplier,
+        source,
+        confidence: Math.min(1, confidence * content),
+      });
+    };
+
+    const collectFromMask = (mask: any, source: string, retrieval = cv.RETR_EXTERNAL) => {
+      contours = new cv.MatVector();
+      hierarchy = new cv.Mat();
+      try {
+        cv.findContours(mask, contours, hierarchy, retrieval, cv.CHAIN_APPROX_SIMPLE);
         const frameArea = proc.width * proc.height;
-        const minArea   = frameArea * 0.025;
-        const maxArea   = frameArea * 0.88;
+        const minArea = frameArea * 0.025;
+        const maxArea = frameArea * 0.72;
 
         for (let i = 0; i < contours.size(); i++) {
-          const cnt   = contours.get(i);
-          const hull  = new cv.Mat();
+          const cnt = contours.get(i);
+          const hull = new cv.Mat();
           const approx = new cv.Mat();
           try {
             const area = cv.contourArea(cnt);
             if (area < minArea || area > maxArea) continue;
+
             cv.convexHull(cnt, hull, false, true);
             const peri = cv.arcLength(hull, true);
-            if (peri < Math.min(proc.width, proc.height) * 0.45) continue;
+            if (peri < Math.min(proc.width, proc.height) * 0.46) continue;
 
-            let pts: [number, number][] = [];
-            for (const eps of [0.012, 0.018, 0.024, 0.032, 0.045, 0.065, 0.09]) {
+            for (const eps of [0.012, 0.018, 0.026, 0.036, 0.052, 0.075, 0.105]) {
               cv.approxPolyDP(hull, approx, eps * peri, true);
+
+              let pts: [number, number][] = [];
               if (approx.rows === 4) {
                 const d = approx.data32S;
-                pts = [[d[0],d[1]],[d[2],d[3]],[d[4],d[5]],[d[6],d[7]]];
+                pts = [[d[0], d[1]], [d[2], d[3]], [d[4], d[5]], [d[6], d[7]]];
+              } else if (approx.rows > 4 && !source.includes("hough")) {
+                const rect = cv.minAreaRect(hull);
+                const vertices = cv.RotatedRect.points(rect);
+                pts = vertices.map((p: any) => [p.x, p.y] as [number, number]);
+              }
+
+              if (pts.length === 4) {
+                const q = clampQuad(sortCorners(pts), proc.width, proc.height);
+                const qArea = polygonArea(q);
+                if (qArea < minArea || qArea > maxArea) continue;
+                pushCandidate(q, source, qArea);
                 break;
               }
-            }
-            // Fallback: minAreaRect handles crumpled/rounded edges
-            if (pts.length !== 4) {
-              const rect     = cv.minAreaRect(hull);
-              const vertices = cv.RotatedRect.points(rect);
-              pts = (vertices as {x:number;y:number}[]).map((p) => [p.x, p.y] as [number,number]);
-            }
-
-            if (pts.length === 4) {
-              const q     = clampQuad(sortCorners(pts), proc.width, proc.height);
-              const qArea = polygonArea(q);
-              if (qArea < minArea || qArea > maxArea) continue;
-              const score = getQuadShapeScore(q, proc.width, proc.height) *
-                (source.includes("edge") ? 1.15 : 1);
-              candidates.push({ quad: q, area: qArea, score, source });
             }
           } finally {
             try { cnt.delete(); hull.delete(); approx.delete(); } catch {}
@@ -379,56 +545,68 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
       }
     };
 
-    let src: any, gray: any, eq: any, blurred: any,
-        edges: any, dilated: any, adaptive: any, morph: any,
-        kernel5: any, kernel11: any, otsu: any, otsuInv: any;
     try {
-      src     = cv.imread(proc);
-      gray    = new cv.Mat();
-      eq      = new cv.Mat();
+      src = cv.imread(proc);
+      gray = new cv.Mat();
+      eq = new cv.Mat();
       blurred = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-      // CLAHE: stabilize poor light / grey paper / receipt text shadows
-      const clahe = new cv.CLAHE(2.0, new cv.Size(8, 8));
-      try { clahe.apply(gray, eq); } finally { try { clahe.delete(); } catch {} }
+      const quality = estimateFrameQuality(gray, cv);
+      if (!quality.ok) return null;
 
-      const std      = imageDataVariance(eq, cv);
-      const blurSize = std < 28 ? 5 : 7;
+      const clahe = new cv.CLAHE(2.2, new cv.Size(8, 8));
+      clahe.apply(gray, eq);
+      try { clahe.delete(); } catch {}
+
+      const blurSize = quality.contrast < 28 ? 5 : 7;
       cv.GaussianBlur(eq, blurred, new cv.Size(blurSize, blurSize), 0);
 
-      kernel5  = cv.Mat.ones(5, 5, cv.CV_8U);
+      kernel3 = cv.Mat.ones(3, 3, cv.CV_8U);
+      kernel5 = cv.Mat.ones(5, 5, cv.CV_8U);
       kernel11 = cv.Mat.ones(11, 11, cv.CV_8U);
 
-      // Strategy 1: Canny edges — most important, does NOT rely on paper color
-      edges   = new cv.Mat();
+      // 1) Canny : priorité aux vrais contours du ticket/document.
+      edges = new cv.Mat();
       dilated = new cv.Mat();
-      const lo = std < 25 ? 12 : 22, hi = std < 25 ? 45 : 88;
-      cv.Canny(blurred, edges, lo, hi);
-      cv.dilate(edges, dilated, kernel5, new cv.Point(-1, -1), 2);
-      cv.morphologyEx(dilated, dilated, cv.MORPH_CLOSE, kernel11);
-      collectFromMask(dilated, "edge-canny-close");
+      const low = quality.contrast < 25 ? 10 : 22;
+      const high = quality.contrast < 25 ? 48 : 92;
+      cv.Canny(blurred, edges, low, high);
+      cv.dilate(edges, dilated, kernel3, new cv.Point(-1, -1), 1);
+      cv.morphologyEx(dilated, dilated, cv.MORPH_CLOSE, kernel5);
+      collectFromMask(dilated, "edge+canny+close", cv.RETR_EXTERNAL);
 
-      // Strategy 2: Adaptive threshold — receipts on textured surfaces
+      // 2) Adaptive threshold : utile sur papier blanc, gris ou surface claire.
       adaptive = new cv.Mat();
-      morph    = new cv.Mat();
-      cv.adaptiveThreshold(blurred, adaptive, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 21, 8);
+      morph = new cv.Mat();
+      cv.adaptiveThreshold(blurred, adaptive, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 25, 9);
       cv.morphologyEx(adaptive, morph, cv.MORPH_CLOSE, kernel5, new cv.Point(-1, -1), 2);
-      collectFromMask(morph, "adaptive-inv");
+      collectFromMask(morph, "adaptive-inv", cv.RETR_EXTERNAL);
 
-      // Strategy 3+4: Otsu bright and dark variants
-      otsu    = new cv.Mat();
-      otsuInv = new cv.Mat();
-      cv.threshold(blurred, otsu,    0, 255, cv.THRESH_BINARY     | cv.THRESH_OTSU);
-      cv.threshold(blurred, otsuInv, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
-      cv.morphologyEx(otsu,    otsu,    cv.MORPH_CLOSE, kernel11);
-      cv.morphologyEx(otsuInv, otsuInv, cv.MORPH_CLOSE, kernel11);
-      collectFromMask(otsu,    "otsu-bright");
-      collectFromMask(otsuInv, "otsu-dark");
+      // 3) Hough Lines en secours uniquement : scoré avec contenu pour éviter les motifs du décor.
+      houghLines = new cv.Mat();
+      cv.HoughLinesP(dilated, houghLines, 1, Math.PI / 180, 52, Math.min(proc.width, proc.height) * 0.24, 18);
+      const houghQuad = buildHoughQuad(houghLines, proc.width, proc.height);
+      if (houghQuad) pushCandidate(houghQuad, "hough-lines");
+
+      // 4) Otsu en fallback très faible, jamais prioritaire.
+      const otsu = new cv.Mat();
+      const otsuInv = new cv.Mat();
+      try {
+        cv.threshold(blurred, otsu, 0, 255, cv.THRESH_BINARY | cv.THRESH_OTSU);
+        cv.morphologyEx(otsu, otsu, cv.MORPH_CLOSE, kernel11);
+        collectFromMask(otsu, "otsu-bright-fallback", cv.RETR_EXTERNAL);
+
+        cv.threshold(blurred, otsuInv, 0, 255, cv.THRESH_BINARY_INV | cv.THRESH_OTSU);
+        cv.morphologyEx(otsuInv, otsuInv, cv.MORPH_CLOSE, kernel11);
+        collectFromMask(otsuInv, "otsu-dark-fallback", cv.RETR_EXTERNAL);
+      } finally {
+        try { otsu.delete(); otsuInv.delete(); } catch {}
+      }
     } catch {
       return null;
     } finally {
-      [src, gray, eq, blurred, edges, dilated, adaptive, morph, kernel5, kernel11, otsu, otsuInv]
+      [src, gray, eq, blurred, edges, dilated, adaptive, morph, kernel3, kernel5, kernel11, houghLines]
         .forEach((m) => { try { m?.delete(); } catch {} });
     }
 
@@ -439,124 +617,118 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
 
   // ── Process one video frame ────────────────────────────────────────────────
   const processFrame = useCallback(() => {
-    const video   = videoRef.current;
+    const video = videoRef.current;
     const overlay = overlayRef.current;
-    const cv      = window.cv;
+    const cv = window.cv;
     if (!video || !overlay || !cv?.Mat || isCapturingRef.current) return;
     if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
 
     const rect = video.getBoundingClientRect();
-    const dw   = Math.round(rect.width)  || video.clientWidth  || 640;
-    const dh   = Math.round(rect.height) || video.clientHeight || 480;
+    const dw = Math.round(rect.width) || video.clientWidth || 640;
+    const dh = Math.round(rect.height) || video.clientHeight || 480;
     if (!dw || !dh) return;
     if (overlay.width !== dw || overlay.height !== dh) { overlay.width = dw; overlay.height = dh; }
 
     if (!procCanvasRef.current) procCanvasRef.current = document.createElement("canvas");
-    const proc  = procCanvasRef.current;
+    const proc = procCanvasRef.current;
     const procW = Math.min(video.videoWidth, MAX_PROCESS_WIDTH);
     const procH = Math.round(video.videoHeight * procW / video.videoWidth);
-    if (!procH) return;
-    proc.width = procW; proc.height = procH;
-    try { proc.getContext("2d", { willReadFrequently: true })!.drawImage(video, 0, 0, procW, procH); }
-    catch { return; }
+    proc.width = procW;
+    proc.height = procH;
+
+    try { proc.getContext("2d", { willReadFrequently: true })!.drawImage(video, 0, 0, procW, procH); } catch { return; }
 
     const candidate = findBestQuad(proc);
-    const now       = performance.now();
-    const diag      = Math.hypot(dw, dh);
+    const now = performance.now();
+    const diag = Math.hypot(dw, dh);
 
     let candidateDisplayQuad: Quad | null = null;
     if (candidate?.quad) {
-      const sx = dw / procW, sy = dh / procH;
-      candidateDisplayQuad = sortCorners(
-        candidate.quad.map(([x, y]) => [x * sx, y * sy] as [number, number])
-      );
-      lastDetectionSource.current = candidate.source;
+      const sx = dw / procW;
+      const sy = dh / procH;
+      candidateDisplayQuad = candidate.quad.map(([x, y]) => [x * sx, y * sy] as [number, number]) as Quad;
+      candidateDisplayQuad = sortCorners(candidateDisplayQuad);
+      lastDetectionSourceRef.current = candidate.source;
     }
 
     if (!candidateDisplayQuad) {
       resetDetection();
-      drawOverlay(overlay, null, 0);
+      drawOverlay(overlay, null, 0, "");
       return;
     }
 
-    const prev          = prevQuadRef.current;
-    const movement      = prev ? quadDeltaRatio(prev, candidateDisplayQuad, diag) : 1;
-    const areaChange    = prev
-      ? Math.abs(polygonArea(prev) - polygonArea(candidateDisplayQuad)) / Math.max(1, polygonArea(prev))
-      : 1;
-    const hasChanged    = movement > 0.025 || areaChange > 0.07;
+    const prev = prevQuadRef.current;
+    const movement = prev ? quadDeltaRatio(prev, candidateDisplayQuad, diag) : 1;
+    const areaChange = prev ? Math.abs(polygonArea(prev) - polygonArea(candidateDisplayQuad)) / Math.max(1, polygonArea(prev)) : 1;
+    const perspectiveChange = movement > MAX_QUAD_MOVEMENT_RATIO || areaChange > MAX_QUAD_AREA_CHANGE;
 
-    if (!prev || hasChanged) {
-      prevQuadRef.current      = candidateDisplayQuad;
+    if (!prev || perspectiveChange) {
+      // Tout changement de position/perspective remet la jauge à zéro immédiatement.
+      prevQuadRef.current = candidateDisplayQuad;
       displayedQuadRef.current = candidateDisplayQuad;
-      stableFrameRef.current   = 1;
-      gaugeStartRef.current    = null;
-      gaugeRef.current         = 0;
-      quadRef.current          = null;
+      stableFrameRef.current = 1;
+      gaugeStartRef.current = null;
+      gaugeRef.current = 0;
+      quadRef.current = null;
       setDetected(false);
-      setGaugeDisplay(0);
-      drawOverlay(overlay, candidateDisplayQuad, 0);
+      drawOverlay(overlay, candidateDisplayQuad, 0, "Stabilisez");
       return;
     }
 
-    stableFrameRef.current++;
-    const smoothed = displayedQuadRef.current
-      ? smoothQuad(displayedQuadRef.current, candidateDisplayQuad, 0.22)
-      : candidateDisplayQuad;
+    stableFrameRef.current += 1;
+    const smoothed = displayedQuadRef.current ? smoothQuad(displayedQuadRef.current, candidateDisplayQuad, 0.22) : candidateDisplayQuad;
     displayedQuadRef.current = smoothed;
-    prevQuadRef.current      = candidateDisplayQuad;
+    prevQuadRef.current = candidateDisplayQuad;
 
     if (stableFrameRef.current >= MIN_STABLE_FRAMES) {
       quadRef.current = smoothed;
       if (gaugeStartRef.current === null) gaugeStartRef.current = now;
-      const elapsed = now - gaugeStartRef.current;
-      gaugeRef.current = Math.min(100, (elapsed / SCAN_DELAY_MS) * 100);
+      const stableElapsed = now - gaugeStartRef.current;
+      gaugeRef.current = Math.min(100, (stableElapsed / REQUIRED_STABLE_MS) * 100);
       setDetected(true);
-      setGaugeDisplay(gaugeRef.current);
 
-      if (elapsed >= SCAN_DELAY_MS && now - lastCaptureAtRef.current > 1500) {
+      if (stableElapsed >= SCAN_DELAY_MS && now - lastCaptureAtRef.current > 1200) {
         lastCaptureAtRef.current = now;
-        isCapturingRef.current   = true;
+        isCapturingRef.current = true;
         setTimeout(() => doCaptureWithCorrection(), 0);
       }
     } else {
       gaugeStartRef.current = null;
-      gaugeRef.current      = 0;
-      quadRef.current       = null;
+      gaugeRef.current = 0;
+      quadRef.current = null;
       setDetected(false);
-      setGaugeDisplay(0);
     }
 
-    drawOverlay(overlay, smoothed, gaugeRef.current);
+    drawOverlay(overlay, smoothed, gaugeRef.current, lastDetectionSourceRef.current);
   }, [findBestQuad, resetDetection]);
 
   // ── Draw detection overlay + gauge ────────────────────────────────────────
-  const drawOverlay = (canvas: HTMLCanvasElement, quad: Quad | null, progress: number) => {
+  const drawOverlay = (canvas: HTMLCanvasElement, quad: Quad | null, progress: number, hint = "") => {
     const ctx = canvas.getContext("2d");
     if (!ctx || !canvas.width || !canvas.height) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Always draw corner brackets
-    const w  = canvas.width, h = canvas.height;
+    const w = canvas.width, h = canvas.height;
     const arm = Math.min(w, h) * 0.07;
-    const mg  = Math.min(w, h) * 0.09;
-    ctx.strokeStyle = quad ? "rgba(56,189,248,0.95)" : "rgba(255,255,255,0.4)";
-    ctx.lineWidth   = 4;
-    ctx.lineCap     = "round";
+    const mg = Math.min(w, h) * 0.09;
+    const bracketColor = quad ? "rgba(56,189,248,0.95)" : "rgba(255,255,255,0.45)";
+
+    ctx.strokeStyle = bracketColor;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
     ctx.setLineDash([]);
-    const brackets: [[number,number],[number,number],[number,number]][] = [
-      [[mg+arm,mg],     [mg,mg],     [mg,mg+arm]],
-      [[w-mg-arm,mg],   [w-mg,mg],   [w-mg,mg+arm]],
-      [[mg+arm,h-mg],   [mg,h-mg],   [mg,h-mg-arm]],
-      [[w-mg-arm,h-mg], [w-mg,h-mg], [w-mg,h-mg-arm]],
+    const brackets: [[number, number], [number, number], [number, number]][] = [
+      [[mg + arm, mg], [mg, mg], [mg, mg + arm]],
+      [[w - mg - arm, mg], [w - mg, mg], [w - mg, mg + arm]],
+      [[mg + arm, h - mg], [mg, h - mg], [mg, h - mg - arm]],
+      [[w - mg - arm, h - mg], [w - mg, h - mg], [w - mg, h - mg - arm]],
     ];
-    brackets.forEach(([[x1,y1],[x2,y2],[x3,y3]]) => {
-      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.stroke();
+    brackets.forEach(([[x1, y1], [x2, y2], [x3, y3]]) => {
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.stroke();
     });
 
     if (!quad) return;
 
-    // Detected quad fill
     ctx.beginPath();
     ctx.moveTo(quad[0][0], quad[0][1]);
     for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
@@ -565,88 +737,90 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     ctx.fill();
 
     ctx.strokeStyle = "rgba(56,189,248,0.75)";
-    ctx.lineWidth   = 2.5;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
-    // Gauge stroke around perimeter
     if (progress > 0) {
-      const perim   = quadPerimeter(quad);
+      const perim = quadPerimeter(quad);
       const dashLen = (progress / 100) * perim;
       ctx.beginPath();
       ctx.moveTo(quad[0][0], quad[0][1]);
       for (let i = 1; i < 4; i++) ctx.lineTo(quad[i][0], quad[i][1]);
       ctx.closePath();
       ctx.strokeStyle = "#38bdf8";
-      ctx.lineWidth   = 6;
+      ctx.lineWidth = 6;
       ctx.shadowColor = "rgba(56,189,248,0.95)";
-      ctx.shadowBlur  = 14;
+      ctx.shadowBlur = 14;
       ctx.setLineDash([dashLen, perim + 1]);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.shadowBlur = 0;
     }
 
-    // Corner dots
     quad.forEach(([x, y]) => {
       ctx.beginPath();
       ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.fillStyle  = "#38bdf8";
+      ctx.fillStyle = "#38bdf8";
       ctx.shadowColor = "#38bdf8";
-      ctx.shadowBlur  = 16;
+      ctx.shadowBlur = 16;
       ctx.fill();
-      ctx.shadowBlur  = 0;
+      ctx.shadowBlur = 0;
     });
 
-    // Progress label
-    if (progress > 3) {
-      const [lx, ly] = quad[0];
-      const label    = `${Math.round(progress)}%`;
-      ctx.font        = "800 15px system-ui";
-      ctx.lineWidth   = 4;
+    const [lx, ly] = quad[0];
+    const label = progress > 3 ? `${Math.round(progress)}%` : hint;
+    if (label) {
+      ctx.font = "800 15px system-ui";
+      ctx.lineWidth = 4;
       ctx.strokeStyle = "rgba(0,0,0,0.72)";
       ctx.strokeText(label, lx + 8, ly - 10);
-      ctx.fillStyle   = "#38bdf8";
+      ctx.fillStyle = "#38bdf8";
       ctx.fillText(label, lx + 8, ly - 10);
     }
   };
 
-  // ── Enhance scanned canvas for better OCR ─────────────────────────────────
-  const enhanceScanCanvas = (canvas: HTMLCanvasElement): HTMLCanvasElement => {
+  const enhanceScanCanvas = (canvas: HTMLCanvasElement) => {
     const cv = window.cv;
     if (!cv?.Mat) return canvas;
-    let src: any, rgb: any, gray: any, denoised: any, out: any;
+
+    let src: any, rgb: any, gray: any, denoise: any, out: any;
     try {
-      src      = cv.imread(canvas);
-      rgb      = new cv.Mat();
-      gray     = new cv.Mat();
-      denoised = new cv.Mat();
-      out      = new cv.Mat();
+      src = cv.imread(canvas);
+      rgb = new cv.Mat();
+      gray = new cv.Mat();
+      denoise = new cv.Mat();
+      out = new cv.Mat();
+
       cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
       cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
-      cv.bilateralFilter(gray, denoised, 7, 55, 55);
-      cv.adaptiveThreshold(denoised, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 31, 11);
+      cv.bilateralFilter(gray, denoise, 7, 55, 55);
+      cv.adaptiveThreshold(denoise, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 31, 11);
+
       const outCanvas = document.createElement("canvas");
-      outCanvas.width = canvas.width; outCanvas.height = canvas.height;
+      outCanvas.width = canvas.width;
+      outCanvas.height = canvas.height;
       cv.imshow(outCanvas, out);
       return outCanvas;
     } catch {
       return canvas;
     } finally {
-      [src, rgb, gray, denoised, out].forEach((m) => { try { m?.delete(); } catch {} });
+      [src, rgb, gray, denoise, out].forEach((m) => { try { m?.delete(); } catch {} });
     }
   };
 
-  // ── Capture with perspective correction + portrait normalization ───────────
+  // ── Capture with perspective correction ───────────────────────────────────
   const doCaptureWithCorrection = useCallback(async () => {
-    const video   = videoRef.current;
+    const video = videoRef.current;
     const overlay = overlayRef.current;
     if (!video) { isCapturingRef.current = false; return; }
+
     triggerFlash();
 
     const vw = video.videoWidth || 1280;
     const vh = video.videoHeight || 720;
     const capCanvas = document.createElement("canvas");
-    capCanvas.width = vw; capCanvas.height = vh;
+    capCanvas.width = vw;
+    capCanvas.height = vh;
     const capCtx = capCanvas.getContext("2d")!;
     capCtx.filter = "contrast(1.08) brightness(1.03) saturate(0.9)";
     capCtx.drawImage(video, 0, 0, vw, vh);
@@ -656,37 +830,38 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     let outCanvas = capCanvas;
 
     if (quad && window.cv?.Mat && overlay?.width && overlay?.height) {
-      const sx         = vw / overlay.width;
-      const sy         = vh / overlay.height;
-      const scaledQuad = normalizeQuadForPortrait(
-        quad.map(([x, y]) => [x * sx, y * sy] as [number, number]) as Quad
-      );
+      const sx = vw / overlay.width;
+      const sy = vh / overlay.height;
+      const scaledQuad = normalizeQuadForPortrait(quad.map(([x, y]) => [x * sx, y * sy] as [number, number]) as Quad);
       const cv = window.cv;
       let src: any, srcPts: any, dstPts: any, matrix: any, dst: any;
+
       try {
         src = cv.imread(capCanvas);
-        const topW    = dist(scaledQuad[0], scaledQuad[1]);
-        const bottomW = dist(scaledQuad[3], scaledQuad[2]);
-        const leftH   = dist(scaledQuad[0], scaledQuad[3]);
-        const rightH  = dist(scaledQuad[1], scaledQuad[2]);
+        const topW = distance(scaledQuad[0], scaledQuad[1]);
+        const bottomW = distance(scaledQuad[3], scaledQuad[2]);
+        const leftH = distance(scaledQuad[0], scaledQuad[3]);
+        const rightH = distance(scaledQuad[1], scaledQuad[2]);
         let w = Math.round(Math.max(topW, bottomW));
         let h = Math.round(Math.max(leftH, rightH));
 
-        // Force portrait output
-        const shouldRotate = w > h;
-        if (shouldRotate) [w, h] = [h, w];
+        const shouldRotateOutput = w > h;
+        if (shouldRotateOutput) [w, h] = [h, w];
 
         if (w > 100 && h > 100) {
-          const dstArray = shouldRotate
+          const dstArray = shouldRotateOutput
             ? [0, h, 0, 0, w, 0, w, h]
             : [0, 0, w, 0, w, h, 0, h];
+
           srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, scaledQuad.flat());
           dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, dstArray);
           matrix = cv.getPerspectiveTransform(srcPts, dstPts);
-          dst    = new cv.Mat();
+          dst = new cv.Mat();
           cv.warpPerspective(src, dst, matrix, new cv.Size(w, h), cv.INTER_CUBIC, cv.BORDER_REPLICATE);
+
           const warped = document.createElement("canvas");
-          warped.width = w; warped.height = h;
+          warped.width = w;
+          warped.height = h;
           cv.imshow(warped, dst);
           outCanvas = enhanceScanCanvas(warped);
         }
@@ -698,10 +873,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     }
 
     try {
-      const blob  = await blobFromCanvas(outCanvas);
-      const idx   = pagesRef.current.length + 1;
-      const file  = new File([blob], `scan-p${idx}.jpg`, { type: "image/jpeg" });
-      const url   = URL.createObjectURL(blob);
+      const blob = await blobFromCanvas(outCanvas);
+      const idx = pagesRef.current.length + 1;
+      const file = new File([blob], `scan-p${idx}.jpg`, { type: "image/jpeg" });
+      const url = URL.createObjectURL(blob);
       const page: PagePreview = { file, url, width: outCanvas.width, height: outCanvas.height };
       setPages((prev) => [...prev, page]);
       setCurrentPage(idx - 1);
@@ -716,12 +891,11 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     }
   }, [resetDetection]);
 
-  // ── Preview actions (Refaire / Tourner / Valider) ─────────────────────────
   const rejectLastCapture = () => {
     if (capturePreviewIndex == null) return;
     setPages((prev) => {
-      const t = prev[capturePreviewIndex];
-      if (t?.url) URL.revokeObjectURL(t.url);
+      const target = prev[capturePreviewIndex];
+      if (target?.url) URL.revokeObjectURL(target.url);
       return prev.filter((_, i) => i !== capturePreviewIndex);
     });
     setCapturePreviewUrl(null);
@@ -739,27 +913,27 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     if (capturePreviewIndex == null) return;
     const page = pagesRef.current[capturePreviewIndex];
     if (!page?.url) return;
+
     const img = new Image();
     img.onload = async () => {
-      const canvas  = document.createElement("canvas");
-      canvas.width  = img.height;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.height;
       canvas.height = img.width;
       const ctx = canvas.getContext("2d")!;
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.rotate(Math.PI / 2);
       ctx.drawImage(img, -img.width / 2, -img.height / 2);
-      try {
-        const blob = await blobFromCanvas(canvas);
-        const url  = URL.createObjectURL(blob);
-        const file = new File([blob], page.file.name, { type: "image/jpeg" });
-        setPages((prev) => {
-          const next = [...prev];
-          if (next[capturePreviewIndex]?.url) URL.revokeObjectURL(next[capturePreviewIndex].url);
-          next[capturePreviewIndex] = { file, url, width: canvas.width, height: canvas.height };
-          return next;
-        });
-        setCapturePreviewUrl(url);
-      } catch {}
+      const blob = await blobFromCanvas(canvas);
+      const url = URL.createObjectURL(blob);
+      const file = new File([blob], page.file.name, { type: "image/jpeg" });
+
+      setPages((prev) => {
+        const next = [...prev];
+        if (next[capturePreviewIndex]?.url) URL.revokeObjectURL(next[capturePreviewIndex].url);
+        next[capturePreviewIndex] = { file, url, width: canvas.width, height: canvas.height };
+        return next;
+      });
+      setCapturePreviewUrl(url);
     };
     img.src = page.url;
   };
@@ -787,8 +961,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     pages.forEach((p) => formData.append("files", p.file));
     formData.append("operationType", opType);
     try {
-      const res  = await fetch(`${apiBase}/api/accounting-intelligence/imports/scan`, {
-        method: "POST", credentials: "include", body: formData,
+      const res = await fetch(`${apiBase}/api/accounting-intelligence/imports/scan`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message ?? "Import impossible");
@@ -802,8 +978,6 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
     }
   };
 
-  const remainingSeconds = Math.max(0, Math.ceil((100 - gaugeDisplay) / 100 * SCAN_DELAY_MS / 1000));
-
   // ── STEP: capture ──────────────────────────────────────────────────────────
   const renderCapture = () => (
     <div className="grid lg:grid-cols-[1.35fr_.65fr] gap-4">
@@ -812,70 +986,42 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
           className="relative overflow-hidden rounded-[1.35rem] bg-black aspect-[3/4] sm:aspect-video shadow-xl"
           style={{ border: "1px solid rgba(124,58,237,0.28)" }}
         >
-          {!capturePreviewUrl && (
-            <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
-          )}
+          {!capturePreviewUrl && <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />}
 
           {capturePreviewUrl && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#111114] p-4">
               <div className="relative h-full w-full flex items-center justify-center">
-                <img
-                  src={capturePreviewUrl} alt="Aperçu du scan"
-                  className="max-h-full max-w-full rounded-md bg-white shadow-2xl object-contain"
-                />
+                <img src={capturePreviewUrl} alt="Aperçu du scan" className="max-h-full max-w-full rounded-md bg-white shadow-2xl object-contain" />
                 <div className="absolute top-3 left-3 rounded-full bg-emerald-500/95 text-white text-xs font-semibold px-3 py-1 shadow-lg flex items-center gap-1">
-                  <Check className="h-3.5 w-3.5" /> Aperçu prêt
+                  <Check className="h-3.5 w-3.5" /> Aperçu PDF prêt
                 </div>
               </div>
             </div>
           )}
 
           <div className="absolute inset-0 pointer-events-none" style={{
-            background: capturePreviewUrl
-              ? "transparent"
-              : "radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.55) 100%)"
+            background: capturePreviewUrl ? "transparent" : "radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.58) 100%)"
           }} />
 
-          <canvas
-            ref={overlayRef}
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ zIndex: 5 }}
-          />
-          <div
-            ref={flashRef}
-            className="absolute inset-0 bg-white pointer-events-none transition-opacity duration-[180ms]"
-            style={{ opacity: 0, zIndex: 30 }}
-          />
+          <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} />
+          <div ref={flashRef} className="absolute inset-0 bg-white pointer-events-none transition-opacity duration-[180ms] z-30" style={{ opacity: 0 }} />
 
-          <div className="absolute bottom-3 left-3 right-3 rounded-full bg-black/72 backdrop-blur-md px-3 py-2 text-xs text-white text-center shadow-lg" style={{ zIndex: 40 }}>
-            {capturePreviewUrl && "Vérifiez le rendu — Refaire, Tourner ou Valider"}
-            {!capturePreviewUrl && cvStatus === "loading" && (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-3 w-3 animate-spin" />Chargement détection IA…
-              </span>
-            )}
-            {!capturePreviewUrl && cvStatus === "error"  && "Détection indisponible — capture manuelle active"}
-            {!capturePreviewUrl && cvStatus === "ready"  && !cameraReady && "Caméra indisponible — importez un fichier"}
-            {!capturePreviewUrl && cvStatus === "ready"  && cameraReady && !detected && "Cadrez le document — stabilisez le téléphone…"}
-            {!capturePreviewUrl && cvStatus === "ready"  && cameraReady && detected  && `Document stable ✓ — scan auto dans ${remainingSeconds}s`}
+          <div className="absolute bottom-3 left-3 right-3 rounded-full bg-black/72 backdrop-blur-md px-3 py-2 text-xs text-white text-center z-40 shadow-lg">
+            {capturePreviewUrl && "Vérifiez le rendu redressé avant de continuer"}
+            {!capturePreviewUrl && cvStatus === "loading" && <span className="flex items-center justify-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />Chargement détection premium…</span>}
+            {!capturePreviewUrl && cvStatus === "error" && "Détection indisponible — capture manuelle active"}
+            {!capturePreviewUrl && cvStatus === "ready" && !cameraReady && "Caméra indisponible — importez un fichier"}
+            {!capturePreviewUrl && cvStatus === "ready" && cameraReady && !detected && "Cadrez le document — surface blanche OK, bords recherchés…"}
+            {!capturePreviewUrl && cvStatus === "ready" && cameraReady && detected && `Document net et stable ✓ — scan auto dans ${remainingSeconds}s`}
           </div>
         </div>
 
         {!capturePreviewUrl ? (
           <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              className="gradient-primary text-primary-foreground shadow-md"
-              onClick={doCaptureWithCorrection}
-              disabled={!cameraReady || saving}
-            >
+            <Button type="button" className="gradient-primary text-primary-foreground shadow-md" onClick={doCaptureWithCorrection} disabled={!cameraReady || saving}>
               <Camera className="h-4 w-4 mr-2" />Capturer maintenant
             </Button>
-            <Button
-              type="button" variant="outline"
-              onClick={() => removePage(pages.length - 1)}
-              disabled={!pages.length}
-            >
+            <Button type="button" variant="outline" onClick={() => removePage(pages.length - 1)} disabled={!pages.length}>
               <RotateCcw className="h-4 w-4 mr-2" />Annuler dernière
             </Button>
           </div>
@@ -927,14 +1073,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
 
         <div className="flex rounded-xl border overflow-hidden text-xs bg-card shadow-sm">
           <button className={`flex-1 py-2.5 font-semibold transition-colors ${opType === "EXPENSE" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`} onClick={() => setOpType("EXPENSE")}>Dépense</button>
-          <button className={`flex-1 py-2.5 font-semibold transition-colors ${opType === "INCOME"  ? "bg-success text-white"             : "hover:bg-muted"}`} onClick={() => setOpType("INCOME")}>Recette</button>
+          <button className={`flex-1 py-2.5 font-semibold transition-colors ${opType === "INCOME" ? "bg-success text-white" : "hover:bg-muted"}`} onClick={() => setOpType("INCOME")}>Recette</button>
         </div>
 
-        <Button
-          className="w-full gradient-primary text-primary-foreground shadow-md"
-          onClick={() => { setCurrentPage(0); setStep("preview"); }}
-          disabled={!pages.length || !!capturePreviewUrl}
-        >
+        <Button className="w-full gradient-primary text-primary-foreground shadow-md" onClick={() => { setCurrentPage(0); setStep("preview"); }} disabled={!pages.length || !!capturePreviewUrl}>
           Aperçu avant import →
         </Button>
       </div>
@@ -963,6 +1105,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             </button>
           </div>
         )}
+
         <div className="flex justify-center">
           <div
             className="relative bg-white rounded-md overflow-hidden cursor-zoom-in"
@@ -970,7 +1113,10 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             onClick={() => pages[currentPage]?.url && setFullscreenUrl(pages[currentPage].url)}
           >
             {pages[currentPage]?.url
-              ? <img src={pages[currentPage].url} alt="" className="w-full block" />
+              ? <>
+                  <img src={pages[currentPage].url} alt="" className="w-full block" />
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(180deg,rgba(255,255,255,0.035) 0%,transparent 50%,rgba(0,0,0,0.035) 100%)" }} />
+                </>
               : <div className="h-64 flex flex-col items-center justify-center gap-2 text-muted-foreground">
                   <FileText className="h-10 w-10 opacity-30" />
                   <span className="text-sm">{pages[currentPage]?.file.name}</span>
@@ -981,6 +1127,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             </div>
           </div>
         </div>
+
         {pages.length > 1 && (
           <div className="flex gap-2 mt-3 overflow-x-auto justify-center">
             {pages.map((p, i) => (
@@ -1013,7 +1160,7 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
           {ocrData?.extractedMerchant && <div className="rounded-lg bg-background border p-2"><p className="text-muted-foreground mb-0.5">Fournisseur</p><p className="font-semibold truncate">{ocrData.extractedMerchant}</p></div>}
-          {ocrData?.extractedDate     && <div className="rounded-lg bg-background border p-2"><p className="text-muted-foreground mb-0.5">Date</p><p className="font-semibold">{new Date(ocrData.extractedDate).toLocaleDateString("fr-FR")}</p></div>}
+          {ocrData?.extractedDate && <div className="rounded-lg bg-background border p-2"><p className="text-muted-foreground mb-0.5">Date</p><p className="font-semibold">{new Date(ocrData.extractedDate).toLocaleDateString("fr-FR")}</p></div>}
           {ocrData?.extractedTTC != null && <div className="rounded-lg bg-background border p-2"><p className="text-muted-foreground mb-0.5">Montant TTC</p><p className={`font-semibold ${opType === "EXPENSE" ? "text-destructive" : "text-success"}`}>{opType === "EXPENSE" ? "−" : "+"}{fmt(Math.abs(ocrData.extractedTTC))}</p></div>}
           {ocrData?.transaction && <div className="rounded-lg bg-background border p-2 col-span-2"><p className="text-muted-foreground mb-0.5">Classée dans les opérations</p><p className="font-semibold text-[11px] truncate">{ocrData.transaction.labelRaw}</p></div>}
         </div>
@@ -1049,17 +1196,17 @@ export function ScanImportDialog({ onImported, trigger }: ScanImportDialogProps)
             <DialogTitle>
               {step === "capture" && "Scanner un document"}
               {step === "preview" && "Aperçu du scan"}
-              {step === "result"  && "Document importé"}
+              {step === "result" && "Document importé"}
             </DialogTitle>
             <DialogDescription>
-              {step === "capture" && "Cadrez le document — scan automatique après 5s de stabilité"}
-              {step === "preview" && "Vérifiez la lisibilité avant la lecture OCR"}
-              {step === "result"  && "L'opération est classée par date dans vos transactions"}
+              {step === "capture" && "Cadrez le document — le scan automatique se déclenche uniquement après 5s de stabilité."}
+              {step === "preview" && "Vérifiez la lisibilité avant la lecture OCR."}
+              {step === "result" && "L'opération est classée par date dans vos transactions."}
             </DialogDescription>
           </DialogHeader>
           {step === "capture" && renderCapture()}
           {step === "preview" && renderPreview()}
-          {step === "result"  && renderResult()}
+          {step === "result" && renderResult()}
         </DialogContent>
       </Dialog>
     </>
